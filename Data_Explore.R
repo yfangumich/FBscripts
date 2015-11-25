@@ -28,7 +28,13 @@ StepSummary=function(dayfile,subj,allcols){
   effect=nrow(subeffect)
   meanstep=mean(subeffect$StepTotal);sdstep=sd(subeffect$StepTotal)
   moststep=max(subeffect$StepTotal);leaststep=min(subeffect$StepTotal)
+  subeffect$weekday=weekdays(as.Date(subeffect$ActivityDay,'%m/%d/%Y'))
   out=data.frame(subj,start,end,total,effect,meanstep,sdstep,moststep,leaststep)
+  weekdays=c("Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday")
+  for (w in weekdays){
+    subeffectw=subeffect[which(subeffect$weekday==w),]
+    out[[w]]=mean(subeffectw$StepTotal)
+  }  
   colnames(out)=allcols
   return(out)
 }
@@ -67,7 +73,8 @@ Step2014=read.csv('work/Fitbit/2014_Cohort_all/dailySteps_merged.csv')
 # Summary for each subject
 step.charcols=c("id","start","end")
 step.numcols=c("total","effect","meanSteps","sdSteps","longestSteps","shortestSteps")
-step.allcols=c(step.charcols,step.numcols)
+step.weekcols=c("Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday")
+step.allcols=c(step.charcols,step.numcols,step.weekcols)
 for (i in 1:length(SubjIDs)){
   t=StepSummary(Step2014,SubjIDs[i],step.allcols)
   for (tcol in step.charcols){
@@ -75,6 +82,9 @@ for (i in 1:length(SubjIDs)){
   }
   for (tcol in step.numcols){
     t[[tcol]]=as.numeric(t[[tcol]])
+  }
+  for (tcol in step.weekcols){
+    t[[tcol]]=as.character(t[[tcol]])
   }
   if (i==1){
     Summary.step=t}
