@@ -1,5 +1,8 @@
 # Initialization
 library("Hmisc")
+library("ggplot2")
+library("reshape2")
+library("lme4")
 ## Functions
 # sleep
 SleepSummary=function(dayfile,subj,allcols){
@@ -96,8 +99,14 @@ for (i in 1:length(SubjIDs)){
   else{
     Summary.step=rbind(Summary.step,t)}
 }
-# Plot weekday mean and sd
+# Plot weekday scatter plot for each subj
 step.weekday=Summary.step[c("Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday")]
+step.weekday.tm=melt(t(step.weekday))
+ggplot(step.weekday.tm,aes(x=Var1,y=value,group=factor(Var2))) + 
+  geom_line(aes(color=factor(Var2))) +
+  labs(x="Weekdays",y="Steps",color="Subject")
+# Plot weekday mean and sd
+step.weekday=step.weekday[-c(7),]
 step.weekday.summary=data.frame(index=c(1:length(step.weekday)),
                                 mean=apply(step.weekday,2,mean,na.rm=TRUE),
                                 sd=apply(step.weekday,2,sd,na.rm=TRUE))
@@ -107,4 +116,7 @@ plot(step.weekday.summary$index,step.weekday.summary$mean,
 axis(1,at=step.weekday.summary$index,labels=rownames(step.weekday.summary))
 with(data=step.weekday.summary,
      expr=errbar(index,mean,mean+sd,mean-sd,add=T,pch=1,cap=.1))
-# Plot weekday scatter plot for each subj
+#"growth" curve
+step.weekday.withid=Summary.step[c("id","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday")]
+step.weekday.withid.m=melt(step.weekday.withid,id="id",variable.name="weekdays",value.name = "meansteps")
+stepmodel.base=lmer(meansteps~weekdays+(1|id),data=step.weekday.withid.m,REML=F)
