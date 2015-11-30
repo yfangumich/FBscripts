@@ -1,3 +1,5 @@
+# Initialization
+library("Hmisc")
 ## Functions
 # sleep
 SleepSummary=function(dayfile,subj,allcols){
@@ -69,12 +71,18 @@ for (i in 1:length(SubjIDs)){
 ## Step
 # day step
 Step2014=read.csv('work/Fitbit/2014_Cohort_all/dailySteps_merged.csv')
+# hour step
+Stephour2014=read.csv('work//Fitbit//2014_Cohort_all//hourlySteps_merged.csv')
+# min step
+Stepmin2014=read.csv('work//Fitbit//2014_Cohort_all//minuteSteps_merged.csv')
+# min narrow step
+Stepnarrowmin2014=read.csv('work//Fitbit//2014_Cohort_all//minuteStepsNarrow_merged.csv')
 
 # Summary for each subject
 step.charcols=c("id","start","end")
-step.numcols=c("total","effect","meanSteps","sdSteps","longestSteps","shortestSteps")
-step.weekcols=c("Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday")
-step.allcols=c(step.charcols,step.numcols,step.weekcols)
+step.numcols=c("total","effect","meanSteps","sdSteps","longestSteps","shortestSteps",
+               "Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday")
+step.allcols=c(step.charcols,step.numcols)
 for (i in 1:length(SubjIDs)){
   t=StepSummary(Step2014,SubjIDs[i],step.allcols)
   for (tcol in step.charcols){
@@ -83,12 +91,20 @@ for (i in 1:length(SubjIDs)){
   for (tcol in step.numcols){
     t[[tcol]]=as.numeric(t[[tcol]])
   }
-  for (tcol in step.weekcols){
-    t[[tcol]]=as.character(t[[tcol]])
-  }
   if (i==1){
     Summary.step=t}
   else{
     Summary.step=rbind(Summary.step,t)}
 }
-
+# Plot weekday mean and sd
+step.weekday=Summary.step[c("Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday")]
+step.weekday.summary=data.frame(index=c(1:length(step.weekday)),
+                                mean=apply(step.weekday,2,mean,na.rm=TRUE),
+                                sd=apply(step.weekday,2,sd,na.rm=TRUE))
+plot(step.weekday.summary$index,step.weekday.summary$mean,
+     ylim=range(2000,15000),xaxt="n",
+     xlab="weekdays",ylab="meanStep")
+axis(1,at=step.weekday.summary$index,labels=rownames(step.weekday.summary))
+with(data=step.weekday.summary,
+     expr=errbar(index,mean,mean+sd,mean-sd,add=T,pch=1,cap=.1))
+# Plot weekday scatter plot for each subj
