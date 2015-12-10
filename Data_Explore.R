@@ -19,22 +19,22 @@ SleepSummary=function(dayfile,subj,allcols,InternStart){
   longestasleep=max(subvalid$TotalMinutesAsleep);longestinbed=max(subvalid$TotalTimeInBed)
   shortestasleep=min(subvalid$TotalMinutesAsleep);shortestinbed=min(subvalid$TotalTimeInBed)
   
-  subvalid.bf=subvalid[which(subvalid$SleepDay < InternStart),]
-  meanasleep.bf=mean(subvalid.bf$TotalMinutesAsleep);meaninbed.bf=mean(subvalid.bf$TotalTimeInBed);meanratio.bf=meanasleep.bf/meaninbed.bf
-  sdasleep.bf=sd(subvalid.bf$TotalMinutesAsleep);sdinbed.bf=sd(subvalid.bf$TotalTimeInBed)
-  longestasleep.bf=max(subvalid.bf$TotalMinutesAsleep);longestinbed.bf=max(subvalid.bf$TotalTimeInBed)
-  shortestasleep.bf=min(subvalid.bf$TotalMinutesAsleep);shortestinbed.bf=min(subvalid.bf$TotalTimeInBed)
+  subvalid.pre=subvalid[which(subvalid$SleepDay < InternStart),]
+  meanasleep.pre=mean(subvalid.pre$TotalMinutesAsleep);meaninbed.pre=mean(subvalid.pre$TotalTimeInBed);meanratio.pre=meanasleep.pre/meaninbed.pre
+  sdasleep.pre=sd(subvalid.pre$TotalMinutesAsleep);sdinbed.pre=sd(subvalid.pre$TotalTimeInBed)
+  longestasleep.pre=max(subvalid.pre$TotalMinutesAsleep);longestinbed.pre=max(subvalid.pre$TotalTimeInBed)
+  shortestasleep.pre=min(subvalid.pre$TotalMinutesAsleep);shortestinbed.pre=min(subvalid.pre$TotalTimeInBed)
   
-  subvalid.af=subvalid[which(subvalid$SleepDay >= InternStart),]
-  meanasleep.af=mean(subvalid.af$TotalMinutesAsleep);meaninbed.af=mean(subvalid.af$TotalTimeInBed);meanratio.af=meanasleep.af/meaninbed.af
-  sdasleep.af=sd(subvalid.af$TotalMinutesAsleep);sdinbed.af=sd(subvalid.af$TotalTimeInBed)
-  longestasleep.af=max(subvalid.af$TotalMinutesAsleep);longestinbed.af=max(subvalid.af$TotalTimeInBed)
-  shortestasleep.af=min(subvalid.af$TotalMinutesAsleep);shortestinbed.af=min(subvalid.af$TotalTimeInBed)
+  subvalid.post=subvalid[which(subvalid$SleepDay >= InternStart),]
+  meanasleep.post=mean(subvalid.post$TotalMinutesAsleep);meaninbed.post=mean(subvalid.post$TotalTimeInBed);meanratio.post=meanasleep.post/meaninbed.post
+  sdasleep.post=sd(subvalid.post$TotalMinutesAsleep);sdinbed.post=sd(subvalid.post$TotalTimeInBed)
+  longestasleep.post=max(subvalid.post$TotalMinutesAsleep);longestinbed.post=max(subvalid.post$TotalTimeInBed)
+  shortestasleep.post=min(subvalid.post$TotalMinutesAsleep);shortestinbed.post=min(subvalid.post$TotalTimeInBed)
   
   out=data.frame(subj,start,end,total,valid,
                  meanasleep,meaninbed,meanratio,sdasleep,sdinbed,longestasleep,shortestasleep,longestinbed,shortestinbed,
-                 meanasleep.bf,meaninbed.bf,meanratio.bf,sdasleep.bf,sdinbed.bf,longestasleep.bf,shortestasleep.bf,longestinbed.bf,shortestinbed.bf,
-                 meanasleep.af,meaninbed.af,meanratio.af,sdasleep.af,sdinbed.af,longestasleep.af,shortestasleep.af,longestinbed.af,shortestinbed.af
+                 meanasleep.pre,meaninbed.pre,meanratio.pre,sdasleep.pre,sdinbed.pre,longestasleep.pre,shortestasleep.pre,longestinbed.pre,shortestinbed.pre,
+                 meanasleep.post,meaninbed.post,meanratio.post,sdasleep.post,sdinbed.post,longestasleep.post,shortestasleep.post,longestinbed.post,shortestinbed.post
                  )
   colnames(out)=allcols
   return(out)
@@ -46,45 +46,45 @@ ActivitySummary=function(dayfile,subj,allcols,InternStart){
   subvalid$ActivityDate=as.Date(subvalid$ActivityDate,'%m/%d/%Y')
   start=subvalid$ActivityDate[1];end=subvalid$ActivityDate[nrow(subvalid)]
   total=nrow(sub);valid=nrow(subvalid)
-  subvalid.bf=subvalid[which(subvalid$ActivityDate < InternStart),]
-  subvalid.af=subvalid[which(subvalid$ActivityDate >= InternStart),]
+  subvalid.pre=subvalid[which(subvalid$ActivityDate < InternStart),]
+  subvalid.post=subvalid[which(subvalid$ActivityDate >= InternStart),]
   
   meanstep=mean(subvalid$TotalSteps);sdstep=sd(subvalid$TotalSteps);moststep=max(subvalid$TotalSteps);leaststep=min(subvalid$TotalSteps)
-  meanstep.bf=mean(subvalid.bf$TotalSteps);sdstep.bf=sd(subvalid.bf$TotalSteps);moststep.bf=max(subvalid.bf$TotalSteps);leaststep.bf=min(subvalid.bf$TotalSteps)
-  meanstep.af=mean(subvalid.af$TotalSteps);sdstep.af=sd(subvalid.af$TotalSteps);moststep.af=max(subvalid.af$TotalSteps);leaststep.af=min(subvalid.af$TotalSteps)
+  meanstep.pre=mean(subvalid.pre$TotalSteps);sdstep.pre=sd(subvalid.pre$TotalSteps);moststep.pre=max(subvalid.pre$TotalSteps);leaststep.pre=min(subvalid.pre$TotalSteps)
+  meanstep.post=mean(subvalid.post$TotalSteps);sdstep.post=sd(subvalid.post$TotalSteps);moststep.post=max(subvalid.post$TotalSteps);leaststep.post=min(subvalid.post$TotalSteps)
   
   meancalories=mean(subvalid$Calories);sdcalories=sd(subvalid$Calories);
-  meancalories.bf=mean(subvalid.bf$Calories);sdcalories.bf=sd(subvalid.bf$Calories);
-  meancalories.af=mean(subvalid.af$Calories);sdcalories.af=sd(subvalid.af$Calories);
+  meancalories.pre=mean(subvalid.pre$Calories);sdcalories.pre=sd(subvalid.pre$Calories);
+  meancalories.post=mean(subvalid.post$Calories);sdcalories.post=sd(subvalid.post$Calories);
   
   meandistance=mean(subvalid$TotalDistance);sddistance=sd(subvalid$TotalDistance);
-  meandistance.bf=mean(subvalid.bf$TotalDistance);sddistance.bf=sd(subvalid.bf$TotalDistance);
-  meandistance.af=mean(subvalid.af$TotalDistance);sddistance.af=sd(subvalid.af$TotalDistance);
+  meandistance.pre=mean(subvalid.pre$TotalDistance);sddistance.pre=sd(subvalid.pre$TotalDistance);
+  meandistance.post=mean(subvalid.post$TotalDistance);sddistance.post=sd(subvalid.post$TotalDistance);
   
   meanveryactmin=mean(subvalid$VeryActiveMinutes);sdveryactmin=sd(subvalid$VeryActiveMinutes);
-  meanveryactmin.bf=mean(subvalid.bf$VeryActiveMinutes);sdveryactmin.bf=sd(subvalid.bf$VeryActiveMinutes);
-  meanveryactmin.af=mean(subvalid.af$VeryActiveMinutes);sdveryactmin.af=sd(subvalid.af$VeryActiveMinutes);
+  meanveryactmin.pre=mean(subvalid.pre$VeryActiveMinutes);sdveryactmin.pre=sd(subvalid.pre$VeryActiveMinutes);
+  meanveryactmin.post=mean(subvalid.post$VeryActiveMinutes);sdveryactmin.post=sd(subvalid.post$VeryActiveMinutes);
   
   meanfairactmin=mean(subvalid$FairlyActiveMinutes);sdfairactmin=sd(subvalid$FairlyActiveMinutes);
-  meanfairactmin.bf=mean(subvalid.bf$FairlyActiveMinutes);sdfairactmin.bf=sd(subvalid.bf$FairlyActiveMinutes);
-  meanfairactmin.af=mean(subvalid.af$FairlyActiveMinutes);sdfairactmin.af=sd(subvalid.af$FairlyActiveMinutes);
+  meanfairactmin.pre=mean(subvalid.pre$FairlyActiveMinutes);sdfairactmin.pre=sd(subvalid.pre$FairlyActiveMinutes);
+  meanfairactmin.post=mean(subvalid.post$FairlyActiveMinutes);sdfairactmin.post=sd(subvalid.post$FairlyActiveMinutes);
   
   meanlightactmin=mean(subvalid$LightlyActiveMinutes);sdlightactmin=sd(subvalid$LightlyActiveMinutes);
-  meanlightactmin.bf=mean(subvalid.bf$LightlyActiveMinutes);sdlightactmin.bf=sd(subvalid.bf$LightlyActiveMinutes);
-  meanlightactmin.af=mean(subvalid.af$LightlyActiveMinutes);sdlightactmin.af=sd(subvalid.af$LightlyActiveMinutes);
+  meanlightactmin.pre=mean(subvalid.pre$LightlyActiveMinutes);sdlightactmin.pre=sd(subvalid.pre$LightlyActiveMinutes);
+  meanlightactmin.post=mean(subvalid.post$LightlyActiveMinutes);sdlightactmin.post=sd(subvalid.post$LightlyActiveMinutes);
   
   meansedmin=mean(subvalid$SedentaryMinutes);sdsedmin=sd(subvalid$SedentaryMinutes);
-  meansedmin.bf=mean(subvalid.bf$SedentaryMinutes);sdsedmin.bf=sd(subvalid.bf$SedentaryMinutes);
-  meansedmin.af=mean(subvalid.af$SedentaryMinutes);sdsedmin.af=sd(subvalid.af$SedentaryMinutes);
+  meansedmin.pre=mean(subvalid.pre$SedentaryMinutes);sdsedmin.pre=sd(subvalid.pre$SedentaryMinutes);
+  meansedmin.post=mean(subvalid.post$SedentaryMinutes);sdsedmin.post=sd(subvalid.post$SedentaryMinutes);
     
   out=data.frame(subj,start,end,total,valid,
-                 meanstep,sdstep,moststep,leaststep,meanstep.bf,sdstep.bf,moststep.bf,leaststep.bf,meanstep.af,sdstep.af,moststep.af,leaststep.af,
-                 meancalories,sdcalories,meancalories.bf,sdcalories.bf,meancalories.af,sdcalories.af,
-                 meandistance,sddistance,meandistance.bf,sddistance.bf,meandistance.af,sddistance.af,
-                 meanveryactmin,sdveryactmin,meanveryactmin.bf,sdveryactmin.bf,meanveryactmin.af,sdveryactmin.af,
-                 meanfairactmin,sdfairactmin,meanfairactmin.bf,sdfairactmin.bf,meanfairactmin.af,sdfairactmin.af,
-                 meanlightactmin,sdlightactmin,meanlightactmin.bf,sdlightactmin.bf,meanlightactmin.af,sdlightactmin.af,
-                 meansedmin,sdsedmin,meansedmin.bf,sdsedmin.bf,meansedmin.af,sdsedmin.af)
+                 meanstep,sdstep,moststep,leaststep,meanstep.pre,sdstep.pre,moststep.pre,leaststep.pre,meanstep.post,sdstep.post,moststep.post,leaststep.post,
+                 meancalories,sdcalories,meancalories.pre,sdcalories.pre,meancalories.post,sdcalories.post,
+                 meandistance,sddistance,meandistance.pre,sddistance.pre,meandistance.post,sddistance.post,
+                 meanveryactmin,sdveryactmin,meanveryactmin.pre,sdveryactmin.pre,meanveryactmin.post,sdveryactmin.post,
+                 meanfairactmin,sdfairactmin,meanfairactmin.pre,sdfairactmin.pre,meanfairactmin.post,sdfairactmin.post,
+                 meanlightactmin,sdlightactmin,meanlightactmin.pre,sdlightactmin.pre,meanlightactmin.post,sdlightactmin.post,
+                 meansedmin,sdsedmin,meansedmin.pre,sdsedmin.pre,meansedmin.post,sdsedmin.post)
   
   subvalid$weekday=weekdays(as.Date(subvalid$ActivityDate,'%m/%d/%Y'))
   weekdays=c("Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday")
@@ -95,12 +95,25 @@ ActivitySummary=function(dayfile,subj,allcols,InternStart){
   colnames(out)=allcols
   return(out)
 }
+## HourlyStep
+StephrSummary=function(hrfile,subj,allcols,InternStart){
+  subvalid=hrfile[which(hrfile$Id %in% subj),]
+  subvalid=subvalid[,!(names(subvalid) %in% c("StepTotal","totalstep","totalhour"))]
+  subvalid.pre=subvalid[which(subvalid$ActivityDate < InternStart),]
+  subvalid.post=subvalid[which(subvalid$ActivityDate >= InternStart),]
+  mean.pre=aggregate(subvalid.pre[,3:26],subvalid.pre["Id"],function(x) mean(x,na.rm=T))
+  mean.post=aggregate(subvalid.post[,3:26],subvalid.post["Id"],function(x) mean(x,na.rm=T))
+  out=cbind(mean.pre,mean.post[,-1])
+  colnames(out)=allcols
+  return(out)
+}
+
 
 ####################################### StartDate ####################################### 
 StartDate2014=read.csv('Z:././././Data Analysis/Yu Fang/data/2014BioShort1.csv')
 StartDate2015=read.csv('Z:././././Data Analysis/Yu Fang/data/2015BioShort1.csv')
 StartDate2014=StartDate2014[c("USERID","StartDate")]
-StartDate2015=StartDate2015[c("USERID","StartDate")]
+StartDate2015=StartDate2015[c("USERID","StartDate")];StartDate2015$USERID=as.character(StartDate2015$USERID)
 StartDates=rbind(StartDate2014,StartDate2015)
 
 ####################################### Sleep #######################################
@@ -117,8 +130,8 @@ sleep.SubjIDs.2015=unique(Sleep2015$Id)
 sleep.charcols=c("id");sleep.datecols=c("start","end")
 sleep.numcols=c("total","valid",
                 "meanMinAsleep","meanMinInbed","meanAsleepInbedratio","sdAsleep","sdInbed","longestAsleep","shortestAsleep","longestInbed","shortestInbed",
-                "meanMinAsleep.bf","meanMinInbed.bf","meanAsleepInbedratio.bf","sdAsleep.bf","sdInbed.bf","longestAsleep.bf","shortestAsleep.bf","longestInbed.bf","shortestInbed.bf",
-                "meanMinAsleep.af","meanMinInbed.af","meanAsleepInbedratio.af","sdAsleep.af","sdInbed.af","longestAsleep.af","shortestAsleep.af","longestInbed.af","shortestInbed.af")
+                "meanMinAsleep.pre","meanMinInbed.pre","meanAsleepInbedratio.pre","sdAsleep.pre","sdInbed.pre","longestAsleep.pre","shortestAsleep.pre","longestInbed.pre","shortestInbed.pre",
+                "meanMinAsleep.post","meanMinInbed.post","meanAsleepInbedratio.post","sdAsleep.post","sdInbed.post","longestAsleep.post","shortestAsleep.post","longestInbed.post","shortestInbed.post")
 sleep.allcols=c(sleep.charcols,sleep,datecols,sleep.numcols)
 for (i in 1:length(sleep.SubjIDs.2014)){
   startdate=as.Date(StartDates$StartDate[StartDates$USERID %in% sleep.SubjIDs.2014[i]],"%m/%d/%Y")
@@ -142,13 +155,13 @@ Summary.sleep.2014=Summary.sleep.2014[which(Summary.sleep.2014$valid>sleep.recor
 Summary.sleep.2015=Summary.sleep.2015[which(Summary.sleep.2015$valid>sleep.recordday),]
 Summary.sleep=rbind(Summary.sleep.2014,Summary.sleep.2015)
 # paired ttest of before and after
-sleep.model.paired.meanasleep.2014=t.test(Summary.sleep.2014$meanMinAsleep.bf,Summary.sleep.2014$meanMinAsleep.af,paired=T)
-sleep.model.paired.meanasleep.2015=t.test(Summary.sleep.2015$meanMinAsleep.bf,Summary.sleep.2015$meanMinAsleep.af,paired=T)
-sleep.model.paired.meaninbed.2014=t.test(Summary.sleep.2014$meanMinInbed.bf,Summary.sleep.2014$meanMinInbed.af,paired=T)
-sleep.model.paired.meaninbed.2015=t.test(Summary.sleep.2015$meanMinInbed.bf,Summary.sleep.2015$meanMinInbed.af,paired=T)
-sleep.model.paired.meanasleep=t.test(Summary.sleep$meanMinAsleep.bf,Summary.sleep$meanMinAsleep.af,paired=T)
-sleep.model.paired.meaninbed=t.test(Summary.sleep$meanMinInbed.bf,Summary.sleep$meanMinInbed.af,paired=T)
-sleep.model.paired.meanratio=t.test(Summary.sleep$meanAsleepInbedratio.bf,Summary.sleep$meanAsleepInbedratio.af,paired=T)
+sleep.model.paired.meanasleep.2014=t.test(Summary.sleep.2014$meanMinAsleep.pre,Summary.sleep.2014$meanMinAsleep.post,paired=T)
+sleep.model.paired.meanasleep.2015=t.test(Summary.sleep.2015$meanMinAsleep.pre,Summary.sleep.2015$meanMinAsleep.post,paired=T)
+sleep.model.paired.meaninbed.2014=t.test(Summary.sleep.2014$meanMinInbed.pre,Summary.sleep.2014$meanMinInbed.post,paired=T)
+sleep.model.paired.meaninbed.2015=t.test(Summary.sleep.2015$meanMinInbed.pre,Summary.sleep.2015$meanMinInbed.post,paired=T)
+sleep.model.paired.meanasleep=t.test(Summary.sleep$meanMinAsleep.pre,Summary.sleep$meanMinAsleep.post,paired=T)
+sleep.model.paired.meaninbed=t.test(Summary.sleep$meanMinInbed.pre,Summary.sleep$meanMinInbed.post,paired=T)
+sleep.model.paired.meanratio=t.test(Summary.sleep$meanAsleepInbedratio.pre,Summary.sleep$meanAsleepInbedratio.post,paired=T)
 
 ####################################### Activity #######################################
 #### daily activity ####
@@ -158,13 +171,13 @@ activity.SubjIDs.2014=unique(Activity2014$Id);activity.SubjIDs.2015=unique(Activ
 ## Steps Summary
 activity.charcols=c("id");activity.datecols=c("start","end")
 activity.numcols=c("total","valid","meanSteps","sdSteps","longestSteps","shortestSteps",
-               "meanSteps.bf","sdSteps.bf","longestSteps.bf","shortestSteps.bf","meanSteps.af","sdSteps.af","longestSteps.af","shortestSteps.af",
-               "meancalories","sdcalories","meancalories.bf","sdcalories.bf","meancalories.af","sdcalories.af",
-               "meandistance","sddistance","meandistance.bf","sddistance.bf","meandistance.af","sddistance.af",
-               "meanveryactmin","sdveryactmin","meanveryactmin.bf","sdveryactmin.bf","meanveryactmin.af","sdveryactmin.af",
-               "meanfairactmin","sdfairactmin","meanfairactmin.bf","sdfairactmin.bf","meanfairactmin.af","sdfairactmin.af",
-               "meanlightactmin","sdlightactmin","meanlightactmin.bf","sdlightactmin.bf","meanlightactmin.af","sdlightactmin.af",
-               "meansedmin","sdsedmin","meansedmin.bf","sdsedmin.bf","meansedmin.af","sdsedmin.af",
+               "meanSteps.pre","sdSteps.pre","longestSteps.pre","shortestSteps.pre","meanSteps.post","sdSteps.post","longestSteps.post","shortestSteps.post",
+               "meancalories","sdcalories","meancalories.pre","sdcalories.pre","meancalories.post","sdcalories.post",
+               "meandistance","sddistance","meandistance.pre","sddistance.pre","meandistance.post","sddistance.post",
+               "meanveryactmin","sdveryactmin","meanveryactmin.pre","sdveryactmin.pre","meanveryactmin.post","sdveryactmin.post",
+               "meanfairactmin","sdfairactmin","meanfairactmin.pre","sdfairactmin.pre","meanfairactmin.post","sdfairactmin.post",
+               "meanlightactmin","sdlightactmin","meanlightactmin.pre","sdlightactmin.pre","meanlightactmin.post","sdlightactmin.post",
+               "meansedmin","sdsedmin","meansedmin.pre","sdsedmin.pre","meansedmin.post","sdsedmin.post",
                "Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday")
 activity.allcols=c(activity.charcols,activity.datecols,activity.numcols)
 for (i in 1:length(activity.SubjIDs.2014)){
@@ -189,27 +202,27 @@ Summary.activity.2014=Summary.activity.2014[which(Summary.activity.2014$valid>ac
 Summary.activity.2015=Summary.activity.2015[which(Summary.activity.2015$valid>activity.recordday),]
 Summary.activity=rbind(Summary.activity.2014,Summary.activity.2015)
 #### paired ttest of steps/calories/distance before and after ####
-activity.model.paired.meanstep.2014=t.test(Summary.activity.2014$meanSteps.bf,Summary.activity.2014$meanSteps.af,paired=T)
-activity.model.paired.meanstep.2015=t.test(Summary.activity.2015$meanSteps.bf,Summary.activity.2015$meanSteps.af,paired=T)
-activity.model.paired.meanstep=t.test(Summary.activity$meanSteps.bf,Summary.activity$meanSteps.af,paired=T)
-activity.model.paired.meancal.2014=t.test(Summary.activity.2014$meancalories.bf,Summary.activity.2014$meancalories.af,paired=T)
-activity.model.paired.meancal.2015=t.test(Summary.activity.2015$meancalories.bf,Summary.activity.2015$meancalories.af,paired=T)
-activity.model.paired.meancal=t.test(Summary.activity$meancalories.bf,Summary.activity$meancalories.af,paired=T)
-activity.model.paired.meandist.2014=t.test(Summary.activity.2014$meandistance.bf,Summary.activity.2014$meandistance.af,paired=T)
-activity.model.paired.meandist.2015=t.test(Summary.activity.2015$meandistance.bf,Summary.activity.2015$meandistance.af,paired=T)
-activity.model.paired.meandist=t.test(Summary.activity$meandistance.bf,Summary.activity$meandistance.af,paired=T)
-activity.model.paired.meanveryactmin.2014=t.test(Summary.activity.2014$meanveryactmin.bf,Summary.activity.2014$meanveryactmin.af,paired=T)
-activity.model.paired.meanfairactmin.2014=t.test(Summary.activity.2014$meanfairactmin.bf,Summary.activity.2014$meanfairactmin.af,paired=T)
-activity.model.paired.meanlightactmin.2014=t.test(Summary.activity.2014$meanlightactmin.bf,Summary.activity.2014$meanlightactmin.af,paired=T)
-activity.model.paired.meansedmin.2014=t.test(Summary.activity.2014$meansedmin.bf,Summary.activity.2014$meansedmin.af,paired=T)
-activity.model.paired.meanveryactmin.2015=t.test(Summary.activity.2015$meanveryactmin.bf,Summary.activity.2015$meanveryactmin.af,paired=T)
-activity.model.paired.meanfairactmin.2015=t.test(Summary.activity.2015$meanfairactmin.bf,Summary.activity.2015$meanfairactmin.af,paired=T)
-activity.model.paired.meanlightactmin.2015=t.test(Summary.activity.2015$meanlightactmin.bf,Summary.activity.2015$meanlightactmin.af,paired=T)
-activity.model.paired.meansedmin.2015=t.test(Summary.activity.2015$meansedmin.bf,Summary.activity.2015$meansedmin.af,paired=T)
-activity.model.paired.meanveryactmin=t.test(Summary.activity$meanveryactmin.bf,Summary.activity$meanveryactmin.af,paired=T)
-activity.model.paired.meanfairactmin=t.test(Summary.activity$meanfairactmin.bf,Summary.activity$meanfairactmin.af,paired=T)
-activity.model.paired.meanlightactmin=t.test(Summary.activity$meanlightactmin.bf,Summary.activity$meanlightactmin.af,paired=T)
-activity.model.paired.meansedmin=t.test(Summary.activity$meansedmin.bf,Summary.activity$meansedmin.af,paired=T)
+activity.model.paired.meanstep.2014=t.test(Summary.activity.2014$meanSteps.pre,Summary.activity.2014$meanSteps.post,paired=T)
+activity.model.paired.meanstep.2015=t.test(Summary.activity.2015$meanSteps.pre,Summary.activity.2015$meanSteps.post,paired=T)
+activity.model.paired.meanstep=t.test(Summary.activity$meanSteps.pre,Summary.activity$meanSteps.post,paired=T)
+activity.model.paired.meancal.2014=t.test(Summary.activity.2014$meancalories.pre,Summary.activity.2014$meancalories.post,paired=T)
+activity.model.paired.meancal.2015=t.test(Summary.activity.2015$meancalories.pre,Summary.activity.2015$meancalories.post,paired=T)
+activity.model.paired.meancal=t.test(Summary.activity$meancalories.pre,Summary.activity$meancalories.post,paired=T)
+activity.model.paired.meandist.2014=t.test(Summary.activity.2014$meandistance.pre,Summary.activity.2014$meandistance.post,paired=T)
+activity.model.paired.meandist.2015=t.test(Summary.activity.2015$meandistance.pre,Summary.activity.2015$meandistance.post,paired=T)
+activity.model.paired.meandist=t.test(Summary.activity$meandistance.pre,Summary.activity$meandistance.post,paired=T)
+activity.model.paired.meanveryactmin.2014=t.test(Summary.activity.2014$meanveryactmin.pre,Summary.activity.2014$meanveryactmin.post,paired=T)
+activity.model.paired.meanfairactmin.2014=t.test(Summary.activity.2014$meanfairactmin.pre,Summary.activity.2014$meanfairactmin.post,paired=T)
+activity.model.paired.meanlightactmin.2014=t.test(Summary.activity.2014$meanlightactmin.pre,Summary.activity.2014$meanlightactmin.post,paired=T)
+activity.model.paired.meansedmin.2014=t.test(Summary.activity.2014$meansedmin.pre,Summary.activity.2014$meansedmin.post,paired=T)
+activity.model.paired.meanveryactmin.2015=t.test(Summary.activity.2015$meanveryactmin.pre,Summary.activity.2015$meanveryactmin.post,paired=T)
+activity.model.paired.meanfairactmin.2015=t.test(Summary.activity.2015$meanfairactmin.pre,Summary.activity.2015$meanfairactmin.post,paired=T)
+activity.model.paired.meanlightactmin.2015=t.test(Summary.activity.2015$meanlightactmin.pre,Summary.activity.2015$meanlightactmin.post,paired=T)
+activity.model.paired.meansedmin.2015=t.test(Summary.activity.2015$meansedmin.pre,Summary.activity.2015$meansedmin.post,paired=T)
+activity.model.paired.meanveryactmin=t.test(Summary.activity$meanveryactmin.pre,Summary.activity$meanveryactmin.post,paired=T)
+activity.model.paired.meanfairactmin=t.test(Summary.activity$meanfairactmin.pre,Summary.activity$meanfairactmin.post,paired=T)
+activity.model.paired.meanlightactmin=t.test(Summary.activity$meanlightactmin.pre,Summary.activity$meanlightactmin.post,paired=T)
+activity.model.paired.meansedmin=t.test(Summary.activity$meansedmin.pre,Summary.activity$meansedmin.post,paired=T)
 # correlations of steps vs. calories/distance
 activity.corr.stepvscal=rcorr(Summary.activity$meanSteps,Summary.activity$meancalories)
 activity.corr.stepvsdist=rcorr(Summary.activity$meanSteps,Summary.activity$meandistance)
@@ -240,20 +253,36 @@ step.weekday.withid.m$id=factor(step.weekday.withid.m$id)
 step.weekday.withid.m$weekdayind=as.numeric(pmatch(step.weekday.withid.m$weekdays,weekdaynames,dup=TRUE))
 stepmodel.linear=lme(meansteps~weekdayind, data=step.weekday.withid.m, random = ~ 1 |id, method="ML")
 #### hourly step ####
-Stephr2014=read.csv('work/Fitbit//2014_Cohort_all//hourlySteps_merged.csv')
-Stephr2015=read.csv('work/Fitbit//2015_Cohort_all/hourlySteps_merged.csv')
 stephr.charcols=c("id")
-stephr.numcols=c(paste(formatC(0:23,width=2,flag="0"),".bf"),paste(formatC(0:23,width=2,flag="0"),".af"))
+stephr.numcols=c(paste(formatC(0:23,width=2,flag="0"),":00:00.pre",sep=""),paste(formatC(0:23,width=2,flag="0"),":00:00.post",sep=""))
 stephr.allcols=c(stephr.charcols,stephr.numcols)
-Stephr2014$ActivityHour=as.character(as.POSIXct(strptime(as.character(Stephr2014$ActivityHour),"%m/%d/%Y %I:%M:%S %p")))
-Stephr2014$ActivityDate=substr(Stephr2014$ActivityHour,1,10)
-Stephr2014$ActivityHour=substr(Stephr2014$ActivityHour,12,end)
-Stephr2014.collapse=ddply(Stephr2014,.(Id,ActivityDate),summarise,StepTotal=paste(StepTotal,collapse=','))
-for (i in 1:nrow(Stephr2014.collapse)){
-  tmp=Stephr2014.collapse$StepTotal[i]
-  Stephr2014.collapse$totalstep[i]=sum(as.numeric(unlist(strsplit(tmp,","))))
+Stephr2014=read.csv('work/Fitbit//2014_Cohort_all//hourlySteps_merged.csv')
+Stephr2015=read.csv('work/Fitbit//2015_Cohort_all/hourlySteps_merged.csv');Stephr2015$Id=as.character(Stephr2015$Id)
+Stephr=rbind(Stephr2014,Stephr2015)
+Stephr$ActivityHour=as.character(as.POSIXct(strptime(as.character(Stephr$ActivityHour),"%m/%d/%Y %I:%M:%S %p")))
+Stephr$ActivityDate=substr(Stephr$ActivityHour,1,10)
+Stephr$ActivityHour=substr(Stephr$ActivityHour,12,end)
+Stephr.collapse=ddply(Stephr,.(Id,ActivityDate),summarise,StepTotal=paste(StepTotal,collapse=','))
+for (i in 1:nrow(Stephr.collapse)){
+  tmp=Stephr.collapse$StepTotal[i]
+  hrs=as.numeric(unlist(strsplit(tmp,",")))
+  Stephr.collapse$totalstep[i]=sum(hrs)
+  Stephr.collapse$totalhour[i]=length(hrs)
 }
-Stephr2014.collapse=Stephr2014.collapse[which(Stephr2014.collapse$totalstep!=0),]
-
+Stephr.collapse=Stephr.collapse[which(Stephr.collapse$totalstep>0 & Stephr.collapse$totalhour==24 ),]
+allhrs=t(matrix(as.numeric(unlist(strsplit(Stephr.collapse$StepTotal,","))),ncol=nrow(Stephr.collapse),nrow=24))
+for (ihr in 0:23){
+  Stephr.collapse[,paste(ihr,":00:00",sep="")]=allhrs[,ihr+1]
+}
+activity.SubjIDs=unique(Stephr$Id)
+for (i in 1:length(activity.SubjIDs)){
+  startdate=as.Date(StartDates$StartDate[StartDates$USERID %in% activity.SubjIDs[i]],"%m/%d/%Y")
+  if (length(startdate!=0)){
+  t=StephrSummary(Stephr.collapse,activity.SubjIDs[i],stephr.allcols,startdate)
+  for (tcol in activity.charcols){t[[tcol]]=as.character(t[[tcol]])}
+  if (i==1){ Summary.stephr=t
+     } else { Summary.stephr=rbind(Summary.stephr,t)}
+  }
+}
 
 ####################################### Heart Rate #######################################
