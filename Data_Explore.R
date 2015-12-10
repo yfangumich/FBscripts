@@ -167,7 +167,10 @@ sleep.model.paired.meanratio=t.test(Summary.sleep$meanAsleepInbedratio.pre,Summa
 #### daily activity ####
 Activity2014=read.csv('work/Fitbit/2014_Cohort_all/dailyActivity_merged.csv')
 Activity2015=read.csv('work//Fitbit//2015_Cohort_all//dailyActivity_merged.csv')
-activity.SubjIDs.2014=unique(Activity2014$Id);activity.SubjIDs.2015=unique(Activity2015$Id)
+activity.SubjIDs.2014=unique(Activity2014$Id);activity.SubjIDs.2015=unique(Activity2015$Id);
+activity.SubjIDs.2014=as.character(activity.SubjIDs.2014);
+activity.SubjIDs.2015=as.character(activity.SubjIDs.2015);
+activity.SubjIDs=rbind(activity.SubjIDs.2014,activity.SubjIDs.2015)
 ## Steps Summary
 activity.charcols=c("id");activity.datecols=c("start","end")
 activity.numcols=c("total","valid","meanSteps","sdSteps","longestSteps","shortestSteps",
@@ -259,6 +262,7 @@ stephr.allcols=c(stephr.charcols,stephr.numcols)
 Stephr2014=read.csv('work/Fitbit//2014_Cohort_all//hourlySteps_merged.csv')
 Stephr2015=read.csv('work/Fitbit//2015_Cohort_all/hourlySteps_merged.csv');Stephr2015$Id=as.character(Stephr2015$Id)
 Stephr=rbind(Stephr2014,Stephr2015)
+activity.SubjIDs=unique(Stephr$Id)
 Stephr$ActivityHour=as.character(as.POSIXct(strptime(as.character(Stephr$ActivityHour),"%m/%d/%Y %I:%M:%S %p")))
 Stephr$ActivityDate=substr(Stephr$ActivityHour,1,10)
 Stephr$ActivityHour=substr(Stephr$ActivityHour,12,end)
@@ -274,7 +278,6 @@ allhrs=t(matrix(as.numeric(unlist(strsplit(Stephr.collapse$StepTotal,","))),ncol
 for (ihr in 0:23){
   Stephr.collapse[,paste(ihr,":00:00",sep="")]=allhrs[,ihr+1]
 }
-activity.SubjIDs=unique(Stephr$Id)
 for (i in 1:length(activity.SubjIDs)){
   startdate=as.Date(StartDates$StartDate[StartDates$USERID %in% activity.SubjIDs[i]],"%m/%d/%Y")
   if (length(startdate!=0)){
@@ -282,7 +285,29 @@ for (i in 1:length(activity.SubjIDs)){
   for (tcol in activity.charcols){t[[tcol]]=as.character(t[[tcol]])}
   if (i==1){ Summary.stephr=t
      } else { Summary.stephr=rbind(Summary.stephr,t)}
-  }
+  } else {print(i)}
 }
+Summary.stephr.mean=colMeans(Summary.stephr[,-1])
+Summary.stephr.sd=apply(Summary.stephr[,-1],2,sd)
+n=nrow(Summary.stephr)
+Summary.stephr.error=qt(0.975,df=n-1)*Summary.stephr.sd/sqrt(n)
+#plot 24hr pattern
+x=c(1:24);xaxislabel=names(Stephr.collapse)[6:29];xaxislabel[seq(2,24,2)]=""
+plot(x,Summary.stephr.mean[1:24],ylim=c(0,850),type="l",xaxt="n",xlab="hour",ylab="average steps",main="Hourly step pattern before/after Internship starts")
+axis(1,at=seq(1,24),labels=xaxislabel)
+polygon(c(rev(x), x), 
+        c(rev(Summary.stephr.mean[1:24]-Summary.stephr.error[1:24]), Summary.stephr.mean[1:24]+Summary.stephr.error[1:24]), 
+          col = adjustcolor('grey80',alpha.f=0.2), border = NA)
+lines(x,Summary.stephr.mean[1:24],lwd=2,col="red")
+lines(x,Summary.stephr.mean[1:24]-Summary.stephr.error[1:24],lty='dashed',col='black')
+lines(x,Summary.stephr.mean[1:24]+Summary.stephr.error[1:24],lty='dashed',col='black')
+lines(x,Summary.stephr.mean[25:48])
+polygon(c(rev(x), x), 
+        c(rev(Summary.stephr.mean[25:48]-Summary.stephr.error[25:48]), Summary.stephr.mean[25:48]+Summary.stephr.error[25:48]), 
+        col = adjustcolor('grey80',alpha.f=0.2), border = NA)
+lines(x,Summary.stephr.mean[25:48],lwd=2,col="green")
+lines(x,Summary.stephr.mean[25:48]+Summary.stephr.error[25:48],lty='dashed',col='black')
+lines(x,Summary.stephr.mean[25:48]-Summary.stephr.error[25:48],lty='dashed',col='black')
+legend(19,880,border="white",c("Before","After"),lty=c(1,1),lwd=c(2.5,2.5),col=c("red","green"))
 
 ####################################### Heart Rate #######################################
