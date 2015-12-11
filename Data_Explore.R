@@ -223,7 +223,7 @@ activity.model.paired.meanveryactmin=t.test(Summary.activity$meanveryactmin.pre,
 activity.model.paired.meanfairactmin=t.test(Summary.activity$meanfairactmin.pre,Summary.activity$meanfairactmin.post,paired=T)
 activity.model.paired.meanlightactmin=t.test(Summary.activity$meanlightactmin.pre,Summary.activity$meanlightactmin.post,paired=T)
 activity.model.paired.meansedmin=t.test(Summary.activity$meansedmin.pre,Summary.activity$meansedmin.post,paired=T)
-# correlations of steps vs. calories/distance
+##### correlations of steps vs. calories/distance ####
 activity.corr.stepvscal=rcorr(Summary.activity$meanSteps,Summary.activity$meancalories)
 activity.corr.stepvsdist=rcorr(Summary.activity$meanSteps,Summary.activity$meandistance)
 #### weekdays ####
@@ -293,7 +293,7 @@ Summary.stephr.mean=colMeans(Summary.stephr[,-1])
 Summary.stephr.sd=apply(Summary.stephr[,-1],2,sd)
 n=nrow(Summary.stephr)
 Summary.stephr.error=qt(0.975,df=n-1)*Summary.stephr.sd/sqrt(n)
-#plot 24hr pattern
+#### plot 24hr pattern ####
 x=c(1:24);xaxislabel=names(Stephr.collapse)[6:29];xaxislabel[seq(2,24,2)]=""
 plot(x,Summary.stephr.mean[1:24],ylim=c(0,1100),type="l",xaxt="n",xlab="hour",ylab="average steps",main="Hourly step pattern before/after Internship starts")
 axis(1,at=seq(1,24),labels=xaxislabel)
@@ -312,4 +312,43 @@ lines(x,Summary.stephr.mean[25:48]+Summary.stephr.error[25:48],lty='dashed',col=
 lines(x,Summary.stephr.mean[25:48]-Summary.stephr.error[25:48],lty='dashed',col='black')
 legend(20.5,880,bty="n",c("Before","After"),lty=c(1,1),lwd=c(2.5,2.5),col=c("red","green"))
 
-####################################### Heart Rate #######################################
+####################################### Mood #######################################
+Mood2014=read.csv('Z:/Data Analysis/Yu Fang/data/Mood_2014_all.csv')
+MoodAct2014=merge(Mood2014,Activity2014,by.x=c("userid","Date_mood"),by.y=c("Id","ActivityDate"),sort=TRUE)
+MoodAct2014=MoodAct2014[which(MoodAct2014$TotalSteps!=0 & !is.na(MoodAct2014$mood)),]
+MoodAct2014$Date_mood=as.Date(MoodAct2014$Date_mood,'%m/%d/%Y')
+MoodAct2014.daily=data.frame(Date_mood=as.Date(character(),'%Y-%m-%d'),sample_num=integer(),mood_mean=integer(),mood_sd=double(),
+                        step_mean=integer(),step_sd=double(),veryactmin_mean=integer(),veryactmin_sd=double(),
+                        fairactmin_mean=integer(),fairactmin_sd=double(),lightactmin_mean=integer(),lightactmin_sd=double(),
+                        sedmin_mean=integer(),sedmin_sd=double(),cal_mean=integer(),cal_sd=double())
+MoodAct2014.Dates=sort(unique(MoodAct2014$Date_mood))
+for (idate in 1:length(MoodAct2014.Dates)){
+  subdate=MoodAct2014[which(MoodAct2014$Date_mood==MoodAct2014.Dates[idate]),]
+  MoodAct2014.daily[idate,"Date_mood"]=MoodAct2014.Dates[idate]
+  MoodAct2014.daily[idate,"sample_num"]=nrow(subdate)
+  MoodAct2014.daily[idate,"mood_mean"]=mean(subdate$mood)
+  MoodAct2014.daily[idate,"mood_sd"]=sd(subdate$mood)
+  MoodAct2014.daily[idate,"step_mean"]=mean(subdate$TotalSteps)
+  MoodAct2014.daily[idate,"step_sd"]=sd(subdate$TotalSteps)
+  MoodAct2014.daily[idate,"veryactmin_mean"]=mean(subdate$VeryActiveMinutes)
+  MoodAct2014.daily[idate,"veryactmin_sd"]=sd(subdate$VeryActiveMinutes)
+  MoodAct2014.daily[idate,"fairactmin_mean"]=mean(subdate$FairlyActiveMinutes)
+  MoodAct2014.daily[idate,"fairactmin_sd"]=sd(subdate$FairlyActiveMinutes)
+  MoodAct2014.daily[idate,"lightactmin_mean"]=mean(subdate$LightlyActiveMinutes)
+  MoodAct2014.daily[idate,"lightactmin_sd"]=sd(subdate$LightlyActiveMinutes)
+  MoodAct2014.daily[idate,"sedmin_mean"]=mean(subdate$SedentaryMinutes)
+  MoodAct2014.daily[idate,"sedmin_sd"]=sd(subdate$SedentaryMinutes)
+  MoodAct2014.daily[idate,"cal_mean"]=mean(subdate$Calories)
+  MoodAct2014.daily[idate,"cal_sd"]=sd(subdate$Calories)
+}
+#### correlation ####
+MoodAct2014.corr.stepvsmood=rcorr(MoodAct2014$mood,MoodAct2014$TotalSteps)
+MoodAct2014.corr.veryvsmood=rcorr(MoodAct2014$mood,MoodAct2014$VeryActiveMinutes)
+#### plot ####
+par(mar=c(5,4,4,6)+0.1)
+plot(MoodAct2014.daily$Date_mood,MoodAct2014.daily$mood_mean,type="o",xlab="Date",ylab="Mood",ylim=c(0,10),col="blue")
+par(new=TRUE)
+plot(MoodAct2014.daily$Date_mood,MoodAct2014.daily$step_mean,type="o",axes=FALSE,bty="n",xlab="",ylab="",col="green")
+axis(side=4,at=pretty(range(MoodAct2014.daily$step_mean)))
+mtext("steps",side=4,line=3)
+legend("topright",bty="n",c("Mood","Steps"),lty=c(1,1),lwd=c(2,2),col=c("blue","green"))
