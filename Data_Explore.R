@@ -111,7 +111,7 @@ StephrSummary=function(hrfile,subj,allcols,InternStart){
 
 ####################################### StartDate ####################################### 
 StartDate2014=read.csv('Z:././././Data Analysis/Yu Fang/data/2014BioShort1.csv')
-StartDate2015=read.csv('Z:././././Data Analysis/Yu Fang/data/2015BioShort1.csv')
+StartDate2015=read.csv('Z:./././././Data Analysis/Yu Fang/data/2015BioShort1_add2missing.csv')
 StartDate2014=StartDate2014[c("USERID","StartDate")]
 StartDate2015=StartDate2015[c("USERID","StartDate")];StartDate2015$USERID=as.character(StartDate2015$USERID)
 StartDates=rbind(StartDate2014,StartDate2015)
@@ -120,8 +120,6 @@ StartDates=rbind(StartDate2014,StartDate2015)
 # day sleep 2014
 Sleep2014=read.csv('work/Fitbit/2014_Cohort_all//sleepDay_merged.csv')
 sleep.SubjIDs.2014=unique(Sleep2014$Id)
-# minute sleep 2014
-Sleepmin2014=read.csv('work//Fitbit//2014_Cohort_all//minuteSleep_merged.csv')
 # day sleep 2015
 Sleep2015=read.csv('work//Fitbit//2015_Cohort_all/sleepDay_merged.csv')
 sleep.SubjIDs.2015=unique(Sleep2015$Id)
@@ -132,7 +130,7 @@ sleep.numcols=c("total","valid",
                 "meanMinAsleep","meanMinInbed","meanAsleepInbedratio","sdAsleep","sdInbed","longestAsleep","shortestAsleep","longestInbed","shortestInbed",
                 "meanMinAsleep.pre","meanMinInbed.pre","meanAsleepInbedratio.pre","sdAsleep.pre","sdInbed.pre","longestAsleep.pre","shortestAsleep.pre","longestInbed.pre","shortestInbed.pre",
                 "meanMinAsleep.post","meanMinInbed.post","meanAsleepInbedratio.post","sdAsleep.post","sdInbed.post","longestAsleep.post","shortestAsleep.post","longestInbed.post","shortestInbed.post")
-sleep.allcols=c(sleep.charcols,sleep,datecols,sleep.numcols)
+sleep.allcols=c(sleep.charcols,sleep.datecols,sleep.numcols)
 for (i in 1:length(sleep.SubjIDs.2014)){
   startdate=as.Date(StartDates$StartDate[StartDates$USERID %in% sleep.SubjIDs.2014[i]],"%m/%d/%Y")
   t=SleepSummary(Sleep2014,sleep.SubjIDs.2014[i],sleep.allcols,startdate)
@@ -152,7 +150,7 @@ for (i in 1:length(sleep.SubjIDs.2015)){
 # exclude subject with less than x day's record (x=sleep.recordday)
 sleep.recordday=10
 Summary.sleep.2014=Summary.sleep.2014[which(Summary.sleep.2014$valid>sleep.recordday),]
-Summary.sleep.2015=Summary.sleep.2015[which(Summary.sleep.2015$valid>sleep.recordday),]
+Summary.sleep.2015=Summary.sleep.2015[which(Summary.sleep.2015$valid>sleep.recordday & !is.na(Summary.sleep.2015$meanMinAsleep.pre)),]
 Summary.sleep=rbind(Summary.sleep.2014,Summary.sleep.2015)
 # paired ttest of before and after
 sleep.model.paired.meanasleep.2014=t.test(Summary.sleep.2014$meanMinAsleep.pre,Summary.sleep.2014$meanMinAsleep.post,paired=T)
@@ -308,6 +306,6 @@ polygon(c(rev(x), x),
 lines(x,Summary.stephr.mean[25:48],lwd=2,col="green")
 lines(x,Summary.stephr.mean[25:48]+Summary.stephr.error[25:48],lty='dashed',col='black')
 lines(x,Summary.stephr.mean[25:48]-Summary.stephr.error[25:48],lty='dashed',col='black')
-legend(19,880,border="white",c("Before","After"),lty=c(1,1),lwd=c(2.5,2.5),col=c("red","green"))
+legend(19.5,880,bty="n",c("Before","After"),lty=c(1,1),lwd=c(2.5,2.5),col=c("red","green"))
 
 ####################################### Heart Rate #######################################
