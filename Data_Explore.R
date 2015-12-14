@@ -3,8 +3,12 @@ library("Hmisc")
 library("ggplot2")
 library("reshape2")
 library("lme4")
+library("lmerTest")
 library("nlme")
 library("plyr")
+library("multcomp");library("multcompView")
+library("TukeyC")
+library("lsmeans")
 ####################################### Functions #######################################
 ## Sleep
 SleepSummary=function(dayfile,subj,allcols,InternStart){
@@ -314,9 +318,39 @@ lines(x,Summary.stephr.mean[25:48],lwd=2,col="green")
 lines(x,Summary.stephr.mean[25:48]+Summary.stephr.error[25:48],lty='dashed',col='black')
 lines(x,Summary.stephr.mean[25:48]-Summary.stephr.error[25:48],lty='dashed',col='black')
 legend(20.5,880,bty="n",c("Before","After"),lty=c(1,1),lwd=c(2.5,2.5),col=c("red","green"))
+#### Compare variance ####
+Stephr.long=Stephr
+Stephr.long$iddate=paste(Stephr.long$Id,Stephr.long$ActivityDate,sep=" ")
+Stephr.collapse$iddate=paste(Stephr.collapse$Id,Stephr.collapse$ActivityDate,sep=" ")
+Stephr.long=Stephr.long[which(Stephr.long$iddate %in% Stephr.collapse$iddate),]
+Stephr.long=merge(Stephr.long,StartDates,by.x="Id",by.y="USERID")
+Stephr.long$StartDate=as.Date(Stephr.long$StartDate,"%m/%d/%Y")
+Stephr.long$timerange=NA
+Stephr.long$timerange[which(Stephr.long$ActivityDate<Stephr.long$StartDate)]="Pre"
+Stephr.long$timerange[which(Stephr.long$ActivityDate>=Stephr.long$StartDate)]="Post"
+Stephr.long$timerange=as.factor(Stephr.long$timerange)
 
+Stephr.mixed.model=lme(StepTotal ~ timerange, random=~1|Id,data=Stephr.long,method="REML")
+anova.lme(Stephr.mixed.model)
+Stephr.mixed.model.posthoc=glht(Stephr.mixed.model,linfct=mcp(timerange="Tukey"))
+Stephr.mixed.model.mcs=summary(Stephr.mixed.model.posthoc,test=adjusted("single-step"))
+cld(Stephr.mixed.model.mcs,level=0.05,decreasing=TRUE)
+Stephr.mixed.model.lsm=lsmeans(Stephr.mixed.model,"timerange")
+cld(Stephr.mixed.model.lsm,alpha=.05,adjust="tukey",decreasing=TRUE,Letters=letters)
+Stephr.fixed.model=gls(StepTotal ~ timerange,data=Stephr.long,method="REML")
+anova(Stephr.mixed.model,Stephr.fixed.model)
+hist(residuals(Stephr.mixed.model),col="darkgray")
+
+Stephr.mixed.model2=lmer(StepTotal ~ timerange + (1|Id),data=Stephr.long,REML=TRUE)
+anova(Stephr.mixed.model2)
+rand(Stephr.mixed.model2)
+difflsmeans(Stephr.mixed.model2,test.effs = "timerange")
+Stephr.mixed.model2.posthoc=glht(Stephr.mixed.model2,linfct=mcp(timerange="Tukey"))
+Stephr.mixed.model2.mcs=summary(Stephr.mixed.model2.posthoc,test=adjusted("single-step"))
+cld(Stephr.mixed.model2.mcs,level=0.05,decreasing=TRUE)
 ####################################### Mood #######################################
 Mood2014=read.csv('Z:/Data Analysis/Yu Fang/data/Mood_2014_all.csv')
+###### Mood & Activity ######
 MoodAct2014=merge(Mood2014,Activity2014,by.x=c("userid","Date_mood"),by.y=c("Id","ActivityDate"),sort=TRUE)
 MoodAct2014=MoodAct2014[which(MoodAct2014$TotalSteps!=0 & !is.na(MoodAct2014$mood)),]
 MoodAct2014$Date_mood=as.Date(MoodAct2014$Date_mood,'%m/%d/%Y')
