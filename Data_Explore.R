@@ -112,8 +112,26 @@ StephrSummary=function(hrfile,subj,allcols,InternStart){
   return(out)
 }
 ## Mood
-MoodSummary=function(dayfile,suj,allcols,InternStart){
+MoodSummary=function(dayfile,subj,allcols,InternStart){
+  sub=dayfile[which(dayfile$userid %in% subj),]
+  subvalid=sub[which(!is.na(sub$mood)),]
+  subvalid$Date_mood=as.Date(as.character(subvalid$Date_mood),'%m/%d/%Y')
+  start=sort(subvalid$Date_mood)[1]; end=sort(subvalid$Date_mood)[nrow(subvalid)]
+  total=nrow(sub);valid=nrow(subvalid)
+    
+  subvalid.pre=subvalid[which(subvalid$Date_mood < InternStart),]
+  meanmood.pre=mean(subvalid.pre$mood);
+  sdmood.pre=sd(subvalid.pre$mood);
   
+  subvalid.post=subvalid[which(subvalid$Date_mood >= InternStart),]
+  meanmood.post=mean(subvalid.post$mood);
+  sdmood.post=sd(subvalid.post$mood);
+  
+  out=data.frame(subj,start,end,total,valid,
+                 meanmood.pre,sdmood.pre,
+                 meanmood.post,sdmood.post)
+  colnames(out)=allcols
+  return(out)
 }
 
 ####################################### StartDate ####################################### 
@@ -188,7 +206,7 @@ activity.numcols=c("total","valid","meanSteps","sdSteps","longestSteps","shortes
                "Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday")
 activity.allcols=c(activity.charcols,activity.datecols,activity.numcols)
 for (i in 1:length(activity.SubjIDs.2014)){
-  startdate=as.Date(StartDates$StartDate[StartDates$USERID %in% sleep.SubjIDs.2014[i]],"%m/%d/%Y")
+  startdate=as.Date(StartDates$StartDate[StartDates$USERID %in% activity.SubjIDs.2014[i]],"%m/%d/%Y")
   t=ActivitySummary(Activity2014,activity.SubjIDs.2014[i],activity.allcols,startdate)
   for (tcol in activity.charcols){t[[tcol]]=as.character(t[[tcol]])}
   for (tcol in activity.numcols){t[[tcol]]=as.numeric(t[[tcol]])  }
@@ -196,7 +214,7 @@ for (i in 1:length(activity.SubjIDs.2014)){
   else{Summary.activity.2014=rbind(Summary.activity.2014,t)}
 }
 for (i in 1:length(activity.SubjIDs.2015)){
-  startdate=as.Date(StartDates$StartDate[StartDates$USERID %in% sleep.SubjIDs.2015[i]],"%m/%d/%Y")
+  startdate=as.Date(StartDates$StartDate[StartDates$USERID %in% activity.SubjIDs.2015[i]],"%m/%d/%Y")
   t=ActivitySummary(Activity2015,activity.SubjIDs.2015[i],activity.allcols,startdate)
   for (tcol in activity.charcols){t[[tcol]]=as.character(t[[tcol]])}
   for (tcol in activity.numcols){t[[tcol]]=as.numeric(t[[tcol]])}
@@ -302,7 +320,7 @@ n=nrow(Summary.stephr)
 Summary.stephr.error=qt(0.975,df=n-1)*Summary.stephr.sd/sqrt(n)
 #### plot 24hr pattern ####
 x=c(1:24);xaxislabel=names(Stephr.collapse)[6:29];xaxislabel[seq(2,24,2)]=""
-plot(x,Summary.stephr.mean[1:24],ylim=c(0,1100),type="l",xaxt="n",xlab="hour",ylab="average steps",main="Hourly step pattern before/after Internship starts")
+plot(x,Summary.stephr.mean[1:24],ylim=c(0,900),type="l",xaxt="n",xlab="hour",ylab="average steps",main="Hourly step pattern before/after Internship starts")
 axis(1,at=seq(1,24),labels=xaxislabel)
 polygon(c(rev(x), x), 
         c(rev(Summary.stephr.mean[1:24]-Summary.stephr.error[1:24]), Summary.stephr.mean[1:24]+Summary.stephr.error[1:24]), 
@@ -317,39 +335,59 @@ polygon(c(rev(x), x),
 lines(x,Summary.stephr.mean[25:48],lwd=2,col="green")
 lines(x,Summary.stephr.mean[25:48]+Summary.stephr.error[25:48],lty='dashed',col='black')
 lines(x,Summary.stephr.mean[25:48]-Summary.stephr.error[25:48],lty='dashed',col='black')
-legend(20.5,880,bty="n",c("Before","After"),lty=c(1,1),lwd=c(2.5,2.5),col=c("red","green"))
+legend("topright",bty="n",c("Before","After"),lty=c(1,1),lwd=c(2.5,2.5),col=c("red","green"))
 #### Compare variance ####
-Stephr.long=Stephr
-Stephr.long$iddate=paste(Stephr.long$Id,Stephr.long$ActivityDate,sep=" ")
-Stephr.collapse$iddate=paste(Stephr.collapse$Id,Stephr.collapse$ActivityDate,sep=" ")
-Stephr.long=Stephr.long[which(Stephr.long$iddate %in% Stephr.collapse$iddate),]
-Stephr.long=merge(Stephr.long,StartDates,by.x="Id",by.y="USERID")
-Stephr.long$StartDate=as.Date(Stephr.long$StartDate,"%m/%d/%Y")
-Stephr.long$timerange=NA
-Stephr.long$timerange[which(Stephr.long$ActivityDate<Stephr.long$StartDate)]="Pre"
-Stephr.long$timerange[which(Stephr.long$ActivityDate>=Stephr.long$StartDate)]="Post"
-Stephr.long$timerange=as.factor(Stephr.long$timerange)
-
-Stephr.mixed.model=lme(StepTotal ~ timerange, random=~1|Id,data=Stephr.long,method="REML")
-anova.lme(Stephr.mixed.model)
-Stephr.mixed.model.posthoc=glht(Stephr.mixed.model,linfct=mcp(timerange="Tukey"))
-Stephr.mixed.model.mcs=summary(Stephr.mixed.model.posthoc,test=adjusted("single-step"))
-cld(Stephr.mixed.model.mcs,level=0.05,decreasing=TRUE)
-Stephr.mixed.model.lsm=lsmeans(Stephr.mixed.model,"timerange")
-cld(Stephr.mixed.model.lsm,alpha=.05,adjust="tukey",decreasing=TRUE,Letters=letters)
-Stephr.fixed.model=gls(StepTotal ~ timerange,data=Stephr.long,method="REML")
-anova(Stephr.mixed.model,Stephr.fixed.model)
-hist(residuals(Stephr.mixed.model),col="darkgray")
-
-Stephr.mixed.model2=lmer(StepTotal ~ timerange + (1|Id),data=Stephr.long,REML=TRUE)
-anova(Stephr.mixed.model2)
-rand(Stephr.mixed.model2)
-difflsmeans(Stephr.mixed.model2,test.effs = "timerange")
-Stephr.mixed.model2.posthoc=glht(Stephr.mixed.model2,linfct=mcp(timerange="Tukey"))
-Stephr.mixed.model2.mcs=summary(Stephr.mixed.model2.posthoc,test=adjusted("single-step"))
-cld(Stephr.mixed.model2.mcs,level=0.05,decreasing=TRUE)
+## wilcoxon signed-rank test
+# test average over subjects pre/post
+wilcox.test(Summary.stephr.mean[1:24],Summary.stephr.mean[25:48],paired=TRUE)
+## nested anova
+Summary.stephr.nest=data.frame(timerange=as.character(),hour=as.numeric(),subj=as.character(),steps=as.numeric())
+for (i in 1:nrow(Summary.stephr)){
+  t=data.frame(timerange=character(),hour=integer(),subj=character(),steps=double(),stringsAsFactors = FALSE)
+  for (j in 1:24){
+    t[j,1]="pre"
+    t[j,2]=j-1
+    t[j,3]=Summary.stephr$id[i]
+    t[j,4]=Summary.stephr[i,j+1]
+  }
+  for (j in 25:48){
+    t[j,1]="post"
+    t[j,2]=j-25
+    t[j,3]=Summary.stephr$id[i]
+    t[j,4]=Summary.stephr[i,j+1]
+  }
+  Summary.stephr.nest=rbind(Summary.stephr.nest,t)
+}
+Summary.stephr.nest$timerange=factor(Summary.stephr.nest$timerange,levels=c("pre","post"))
+Summary.stephr.nest$hour=factor(Summary.stephr.nest$hour,levels=c(0:23))
+with(Summary.stephr.nest,tapply(steps,list(timerange,subj),mean))
+with(Summary.stephr.nest,boxplot(steps~subj+timerange))
+with(Summary.stephr.nest,tapply(steps,list(timerange,hour),mean))
+with(Summary.stephr.nest,boxplot(steps~hour+timerange))
+with(Summary.stephr.nest,tapply(steps,list(timerange,subj,hour),mean))
+with(Summary.stephr.nest,boxplot(steps~subj+hour+timerange))
+# two-way within subjects ANOVA - subj serves as random factor
+Summary.stephr.nest.aov=aov(steps ~ timerange * hour + Error(subj/(timerange*hour)),data=Summary.stephr.nest)
+summary(Summary.stephr.nest.aov)
+print(model.tables(Summary.stephr.nest.aov,"means"),digits=3)
+print(model.tables(Summary.stephr.nest.aov,"effects"),digits=3)
 ####################################### Mood #######################################
 Mood2014=read.csv('Z:/Data Analysis/Yu Fang/data/Mood_2014_all.csv')
+#### Mood Summary ####
+mood.SubjIDs.2014=unique(Mood2014$userid)
+mood.charcols=c("id");mood.datecols=c("start","end")
+mood.numcols=c("total","valid","meanMood.pre","sdMood.pre","meanMood.post","sdMood.post")
+mood.allcols=c(mood.charcols,mood.datecols,mood.numcols)
+for (i in 1:length(mood.SubjIDs.2014)){
+  startdate=as.Date(StartDates$StartDate[StartDates$USERID %in% mood.SubjIDs.2014[i]],"%m/%d/%Y")
+  t=MoodSummary(Mood2014,mood.SubjIDs.2014[i],mood.allcols,startdate)
+  for (tcol in mood.charcols){t[[tcol]]=as.character(t[[tcol]])}
+  for (tcol in mood.numcols){t[[tcol]]=as.numeric(t[[tcol]])  }
+  if (i==1){Summary.mood.2014=t}
+  else{Summary.mood.2014=rbind(Summary.mood.2014,t)}
+}
+Summary.mood.2014=Summary.mood.2014[which(!is.na(Summary.mood.2014$meanMood.pre)),]
+mood.model.paired.2014=t.test(Summary.mood.2014$meanMood.pre,Summary.mood.2014$meanMood.post,paired=T)
 ###### Mood & Activity ######
 MoodAct2014=merge(Mood2014,Activity2014,by.x=c("userid","Date_mood"),by.y=c("Id","ActivityDate"),sort=TRUE)
 MoodAct2014=MoodAct2014[which(MoodAct2014$TotalSteps!=0 & !is.na(MoodAct2014$mood)),]
@@ -395,11 +433,13 @@ mtext("steps",side=4,line=3)
 legend("topright",bty="n",c("Mood","Steps"),lty=c(1,1),lwd=c(2,2),col=c("blue","green"))
 #### plot mood/sedentary minutes ####
 par(mar=c(5,4,4,6)+0.1)
-plot(MoodAct2014.daily$Date_mood,MoodAct2014.daily$mood_mean,type="l",xlab="Date",ylab="Mood",ylim=c(2,10),col="blue")
+plot(MoodAct2014.daily$Date_mood,MoodAct2014.daily$mood_mean,type="l",xlab="Date",ylab="Mood",main="Mood and sedentary minutes",ylim=c(2,10),col="blue")
 par(new=TRUE);newrange=c(100,1300)
 plot(MoodAct2014.daily$Date_mood,MoodAct2014.daily$sedmin_mean,type="l",axes=FALSE,ylim=newrange,bty="n",xlab="",ylab="",col="black")
 axis(side=4,at=pretty(newrange))
 mtext("minutes",side=4,line=3)
+MoodAct2014.daily.nonsed=MoodAct2014.daily$veryactmin_mean+MoodAct2014.daily$fairactmin_mean+MoodAct2014.daily$lightactmin_mean
+#lines(MoodAct2014.daily$Date_mood,MoodAct2014.daily.nonsed,type="l",col="violet")
 legend("topleft",bty="n",c("Mood","sedentary_minute"),lty=c(1,1),lwd=c(2,2),col=c("blue","black"))
 #### plot mood/activity hours ####
 par(mar=c(5,4,4,6)+0.1)
