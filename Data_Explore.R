@@ -9,6 +9,10 @@ library("plyr")
 library("multcomp");library("multcompView")
 library("TukeyC")
 library("lsmeans")
+library("stargazer")
+library("sjPlot") # table functions
+library("sjmisc")
+library("texreg")
 ####################################### Functions #######################################
 ## Sleep
 SleepSummary=function(dayfile,subj,allcols,InternStart){
@@ -370,7 +374,10 @@ with(Summary.stephr.nest,boxplot(steps~subj+hour+timerange))
 Summary.stephr.nest.aov=aov(steps ~ timerange * hour + Error(subj/(timerange*hour)),data=Summary.stephr.nest)
 summary(Summary.stephr.nest.aov)
 print(model.tables(Summary.stephr.nest.aov,"means"),digits=3)
-print(model.tables(Summary.stephr.nest.aov,"effects"),digits=3)
+stargazer(Summary.stephr.nest)
+screenreg(summary(Summary.stephr.nest.aov))
+write.csv(xtable(Summary.stephr.nest.aov),file="work/Fitbit/FBscripts/test.csv",sep=",")
+xtable(summary(Summary.stephr.nest.aov))
 ####################################### Mood #######################################
 Mood2014=read.csv('Z:/Data Analysis/Yu Fang/data/Mood_2014_all.csv')
 #### Mood Summary ####
