@@ -13,12 +13,12 @@ library("stargazer")
 library("sjPlot") # table functions
 library("sjmisc")
 library("texreg")
+library("gtools")
 ####################################### Functions #######################################
 ## Sleep
 SleepSummary=function(dayfile,subj,allcols,InternStart){
   sub=dayfile[which(dayfile$Id %in% subj),]
   subvalid=sub[which(sub$TotalMinutesAsleep!=0 & sub$TotalTimeInBed!=0),]
-  subvalid$SleepDay=as.Date(substr(as.character(subvalid$SleepDay),1,nchar(as.character(subvalid$SleepDay))-12),'%m/%d/%Y')
   start=subvalid$SleepDay[1]; end=subvalid$SleepDay[nrow(subvalid)]
   total=nrow(sub);valid=nrow(subvalid)
   
@@ -51,7 +51,6 @@ SleepSummary=function(dayfile,subj,allcols,InternStart){
 ActivitySummary=function(dayfile,subj,allcols,InternStart){
   sub=dayfile[which(dayfile$Id %in% subj),]
   subvalid=sub[which(sub$TotalSteps!=0),]
-  subvalid$ActivityDate=as.Date(subvalid$ActivityDate,'%m/%d/%Y')
   start=subvalid$ActivityDate[1];end=subvalid$ActivityDate[nrow(subvalid)]
   total=nrow(sub);valid=nrow(subvalid)
   subvalid.pre=subvalid[which(subvalid$ActivityDate < InternStart),]
@@ -140,7 +139,7 @@ MoodSummary=function(dayfile,subj,allcols,InternStart){
 
 ####################################### StartDate ####################################### 
 StartDate2014=read.csv('Z:././././Data Analysis/Yu Fang/data/2014BioShort1.csv')
-StartDate2015=read.csv('Z:./././././Data Analysis/Yu Fang/data/2015BioShort1_add2missing.csv')
+StartDate2015=read.csv('Z:./././././Data Analysis/Yu Fang/data/2015BioShort1.csv')
 StartDate2014=StartDate2014[c("USERID","StartDate")]
 StartDate2015=StartDate2015[c("USERID","StartDate")];StartDate2015$USERID=as.character(StartDate2015$USERID)
 StartDates=rbind(StartDate2014,StartDate2015)
@@ -148,10 +147,13 @@ StartDates=rbind(StartDate2014,StartDate2015)
 ####################################### Sleep #######################################
 # day sleep 2014
 Sleep2014=read.csv('work/Fitbit/2014_Cohort_all//sleepDay_merged.csv')
+Sleep2014$SleepDay=as.Date(substr(as.character(Sleep2014$SleepDay),1,nchar(as.character(Sleep2014$SleepDay))-4),'%m/%d/%Y')
 sleep.SubjIDs.2014=unique(Sleep2014$Id)
 # day sleep 2015
 Sleep2015=read.csv('work//Fitbit//2015_Cohort_all/sleepDay_merged.csv')
+Sleep2015$SleepDay=as.Date(substr(as.character(Sleep2015$SleepDay),1,nchar(as.character(Sleep2015$SleepDay))-12),'%m/%d/%Y')
 sleep.SubjIDs.2015=unique(Sleep2015$Id)
+Sleep=rbind(Sleep2014,Sleep2015)
 
 # Summary for each subject 2014
 sleep.charcols=c("id");sleep.datecols=c("start","end")
@@ -197,6 +199,9 @@ sleep.model.paired.meanratio=t.test(Summary.sleep$meanAsleepInbedratio.pre,Summa
 Activity2014=read.csv('work/Fitbit/2014_Cohort_all/dailyActivity_merged.csv')
 Activity2015=read.csv('work//Fitbit//2015_Cohort_all//dailyActivity_merged.csv')
 activity.SubjIDs.2014=unique(Activity2014$Id);activity.SubjIDs.2015=unique(Activity2015$Id);
+Activity2014$ActivityDate=as.Date(Activity2014$ActivityDate,'%m/%d/%Y')
+Activity2015$ActivityDate=as.Date(Activity2015$ActivityDate,'%m/%d/%Y')
+Activity=rbind(Activity2014,Activity2015)
 ## Steps Summary
 activity.charcols=c("id");activity.datecols=c("start","end")
 activity.numcols=c("total","valid","meanSteps","sdSteps","longestSteps","shortestSteps",
@@ -503,3 +508,25 @@ axis(side=4,at=pretty(newrange))
 mtext("minutes",side=4,line=3)
 lines(MoodSleep2014.daily$Date_mood,MoodSleep2014.daily$inbed_mean,type="o",col="peru")
 legend("topright",bty="n",c("Mood","asleep","inbed"),lty=c(1,1),lwd=c(1,1),col=c("blue","plum","peru"))
+####################################### PHQ #######################################
+PHQ.2014=read.csv('z:/Data Analysis/Yu Fang/data/2014data.csv')
+PHQ.BS1.2014=read.csv('z:/Data Analysis/Yu Fang/data/2014BioShort1.csv')
+PHQ.BS2.2014=read.csv('z:/Data Analysis/Yu Fang/data/2014BioShort2.csv')
+colnames(PHQ.BS1.2014)=paste(colnames(PHQ.BS1.2014),"BS1",sep="_")
+colnames(PHQ.BS2.2014)=paste(colnames(PHQ.BS2.2014),"BS2",sep="_")
+PHQ.BS.2014=merge(PHQ.2014,PHQ.BS1.2014,by.x="USERID",by.y="USERID_BS1",all.y=TRUE)
+PHQ.BS.2014=merge(PHQ.BS.2014,PHQ.BS2.2014,by.x="USERID",by.y="USERID_BS2",all.y=TRUE)
+PHQ.2015=read.csv('z:/Data Analysis/Yu Fang/data/2015BLQ1.csv')
+PHQ.BS1.2015=read.csv('z:/Data Analysis/Yu Fang/data/2015BioShort1.csv')
+PHQ.BS2.2015=read.csv('z:/Data Analysis/Yu Fang/data/2015BioShort2.csv')
+colnames(PHQ.BS1.2015)=paste(colnames(PHQ.BS1.2015),"BS1",sep="_")
+colnames(PHQ.BS2.2015)=paste(colnames(PHQ.BS2.2015),"BS2",sep="_")
+PHQ.BS.2015=merge(PHQ.2015,PHQ.BS1.2015,by.x="USERID",by.y="USERID_BS1",all.y=TRUE)
+PHQ.BS.2015=merge(PHQ.BS.2015,PHQ.BS2.2015,by.x="USERID",by.y="USERID_BS2",all.y=TRUE)
+PHQ.BS=smartbind(PHQ.BS.2014,PHQ.BS.2015)
+PHQ.datecol1=c("PHQdate0","PHQdate1","PHQdate2","PHQdate3","PHQdate4")
+PHQ.datecol2=c("PHQdate_BS1","PHQdate_BS2","StartDate_BS1")
+for (icol in PHQ.datecol1){PHQ.BS[[icol]]=as.Date(PHQ.BS[[icol]],format='%d%b%y')}
+for (icol in PHQ.datecol2){PHQ.BS[[icol]]=as.Date(PHQ.BS[[icol]],format='%m/%d/%Y')}
+
+#### PHQ & Sleep
