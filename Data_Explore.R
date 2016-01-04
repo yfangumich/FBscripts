@@ -528,5 +528,42 @@ PHQ.datecol1=c("PHQdate0","PHQdate1","PHQdate2","PHQdate3","PHQdate4")
 PHQ.datecol2=c("PHQdate_BS1","PHQdate_BS2","StartDate_BS1")
 for (icol in PHQ.datecol1){PHQ.BS[[icol]]=as.Date(PHQ.BS[[icol]],format='%d%b%y')}
 for (icol in PHQ.datecol2){PHQ.BS[[icol]]=as.Date(PHQ.BS[[icol]],format='%m/%d/%Y')}
-
-#### PHQ & Sleep
+#### PHQ & Sleep & Activity
+PHQ.fitbit=PHQ.BS
+PHQ.daterange=10 #average sleep time within 10 days before and after PHQ date
+PHQ.datecols=c("PHQdate0","PHQdate1","PHQdate2","PHQdate3","PHQdate4","PHQdate_BS1","PHQdate_BS2")
+PHQ.sleepcols=c("sleep0","sleep1","sleep2","sleep3","sleep4","sleep_BS1","sleep_BS2")
+PHQ.stepcols=c("step0","step1","step2","step3","step4","step_BS1","step_BS2")
+PHQ.phqcols=c("PHQtot0","PHQtot1","PHQtot2","PHQtot3","PHQtot4","PHQtot_BS1","PHQtot_BS2")
+for (icol in PHQ.sleepcols){PHQ.fitbit[[icol]]=NA}
+for (icol in PHQ.stepcols){PHQ.fitbit[[icol]]=NA}
+for (isub in 1:nrow(PHQ.fitbit)){
+  sub=PHQ.fitbit$USERID[isub]
+  for (idate in 1:length(PHQ.datecols)){
+    datetmp=PHQ.fitbit[[PHQ.datecols[idate]]][isub]
+    if (!is.null(datetmp)){
+      sleeptmp=Sleep[which(Sleep$Id==sub & abs(Sleep$SleepDay-datetmp)<PHQ.daterange),]
+      steptmp=Activity[which(Activity$Id==sub & abs(Activity$ActivityDate-datetmp)<PHQ.daterange),]
+      if (nrow(sleeptmp)!=0) {
+        PHQ.fitbit[[PHQ.sleepcols[idate]]][isub]=mean(sleeptmp$TotalMinutesAsleep,na.rm = TRUE)
+      }
+      if (nrow(steptmp)!=0) {
+        PHQ.fitbit[[PHQ.stepcols[idate]]][isub]=mean(steptmp$TotalSteps[steptmp$TotalSteps!=0],na.rm=TRUE)
+      }
+    }
+  }
+}
+# simple association between total PHQ and sleep/step
+PHQ.fitbit.sleepcols=c(PHQ.sleepcols,PHQ.phqcols)
+PHQ.fitbit.stepcols=c(PHQ.stepcols,PHQ.phqcols)
+PHQ.fitbit.subsleep=PHQ.fitbit[PHQ.fitbit.sleepcols]
+PHQ.fitbit.substep=PHQ.fitbit[PHQ.fitbit.stepcols]
+PHQ.fitbit.subsleep.long=mapply(c,PHQ.fitbit.subsleep[c(1,8)],PHQ.fitbit.subsleep[c(2,9)],PHQ.fitbit.subsleep[c(3,10)],
+                                PHQ.fitbit.subsleep[c(4,11)],PHQ.fitbit.subsleep[c(5,12)],PHQ.fitbit.subsleep[c(6,13)],PHQ.fitbit.subsleep[c(7,14)])
+PHQ.fitbit.substep.long=mapply(c,PHQ.fitbit.substep[c(1,8)],PHQ.fitbit.substep[c(2,9)],PHQ.fitbit.substep[c(3,10)],
+                                PHQ.fitbit.substep[c(4,11)],PHQ.fitbit.substep[c(5,12)],PHQ.fitbit.substep[c(6,13)],PHQ.fitbit.substep[c(7,14)])
+PHQ.fitbit.subsleep.long=PHQ.fitbit.subsleep.long[which(!is.na(PHQ.fitbit.subsleep.long[,1]) & !is.na(PHQ.fitbit.subsleep.long[,2])),]
+PHQ.fitbit.substep.long=PHQ.fitbit.substep.long[which(!is.na(PHQ.fitbit.substep.long[,1]) & !is.na(PHQ.fitbit.substep.long[,2])),]
+PHQ.corr.sleep=rcorr(PHQ.fitbit.subsleep.long[,1],PHQ.fitbit.subsleep.long[,2])
+PHQ.corr.step=rcorr(PHQ.fitbit.substep.long[,1],PHQ.fitbit.substep.long[,2])
+# linear regression of step and sleep
