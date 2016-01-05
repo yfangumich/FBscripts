@@ -118,7 +118,6 @@ StephrSummary=function(hrfile,subj,allcols,InternStart){
 MoodSummary=function(dayfile,subj,allcols,InternStart){
   sub=dayfile[which(dayfile$userid %in% subj),]
   subvalid=sub[which(!is.na(sub$mood)),]
-  subvalid$Date_mood=as.Date(as.character(subvalid$Date_mood),'%m/%d/%Y')
   start=sort(subvalid$Date_mood)[1]; end=sort(subvalid$Date_mood)[nrow(subvalid)]
   total=nrow(sub);valid=nrow(subvalid)
     
@@ -384,50 +383,74 @@ screenreg(summary(Summary.stephr.nest.aov))
 write.csv(xtable(Summary.stephr.nest.aov),file="work/Fitbit/FBscripts/test.csv",sep=",")
 xtable(summary(Summary.stephr.nest.aov))
 ####################################### Mood #######################################
-Mood2014=read.csv('Z:/Data Analysis/Yu Fang/data/Mood_2014_all.csv')
+Mood2014=read.csv('Z:/Data Analysis/Yu Fang/data/Mood_2014_all.csv',stringsAsFactors=FALSE)
+Mood2014$Date_mood=as.Date(as.character(Mood2014$Date_mood),'%m/%d/%Y')
+Mood2015.raw=read.csv('Z:/Data Analysis/Yu Fang/data/Mood_2015_all.csv',stringsAsFactors=FALSE)
+Mood2015.raw[Mood2015.raw=="null"]=NA
+Mood2015=data.frame(userid=character(),Date_mood=character(),mood=integer())
+f1=function(df){
+  df=data.frame(lapply(df,as.integer))
+  df=df[,colSums(is.na(df))<nrow(df)]
+  subframe=data.frame(userid=rep(as.character(df$USERID),ncol(df)-1),Date_mood=rep(NA,ncol(df)-1),mood=rep(NA,ncol(df)-1))
+  subframe$Date_mood=as.Date(names(df)[2:ncol(df)],"X%m.%d.%Y")
+  subframe$mood=as.matrix(df)[2:ncol(df)]
+  return(subframe)
+}
+for (isub in 1:nrow(Mood2015.raw)){
+  Mood2015=rbind(Mood2015,f1(Mood2015.raw[isub,]))
+}
+Mood2015$userid=as.character(Mood2015$userid)
+Mood=rbind(Mood2014,Mood2015)
 #### Mood Summary ####
-mood.SubjIDs.2014=unique(Mood2014$userid)
 mood.charcols=c("id");mood.datecols=c("start","end")
 mood.numcols=c("total","valid","meanMood.pre","sdMood.pre","meanMood.post","sdMood.post")
 mood.allcols=c(mood.charcols,mood.datecols,mood.numcols)
-for (i in 1:length(mood.SubjIDs.2014)){
-  startdate=as.Date(StartDates$StartDate[StartDates$USERID %in% mood.SubjIDs.2014[i]],"%m/%d/%Y")
-  t=MoodSummary(Mood2014,mood.SubjIDs.2014[i],mood.allcols,startdate)
+mood.SubjIDs=unique(Mood$userid)
+for (i in 1:length(mood.SubjIDs)){
+  startdate=as.Date(StartDates$StartDate[StartDates$USERID %in% mood.SubjIDs[i]],"%m/%d/%Y")
+  t=MoodSummary(Mood,mood.SubjIDs[i],mood.allcols,startdate)
   for (tcol in mood.charcols){t[[tcol]]=as.character(t[[tcol]])}
   for (tcol in mood.numcols){t[[tcol]]=as.numeric(t[[tcol]])  }
-  if (i==1){Summary.mood.2014=t}
-  else{Summary.mood.2014=rbind(Summary.mood.2014,t)}
+  if (i==1){Summary.mood=t}
+  else{Summary.mood=rbind(Summary.mood,t)}
 }
-Summary.mood.2014=Summary.mood.2014[which(!is.na(Summary.mood.2014$meanMood.pre)),]
+Summary.mood=Summary.mood[which(!is.na(Summary.mood$meanMood.pre)),]
+mood.model.paired=t.test(Summary.mood$meanMood.pre,Summary.mood$meanMood.post,paired=T)
+Summary.mood.2014=Summary.mood[which(Summary.mood$end < as.Date("2015-01-01")),]
 mood.model.paired.2014=t.test(Summary.mood.2014$meanMood.pre,Summary.mood.2014$meanMood.post,paired=T)
+Summary.mood.2015=Summary.mood[which(Summary.mood$end > as.Date("2015-01-01")),]
+mood.model.paired.2015=t.test(Summary.mood.2015$meanMood.pre,Summary.mood.2015$meanMood.post,paired=T)
 ###### Mood & Activity ######
-MoodAct2014=merge(Mood2014,Activity2014,by.x=c("userid","Date_mood"),by.y=c("Id","ActivityDate"),sort=TRUE)
-MoodAct2014=MoodAct2014[which(MoodAct2014$TotalSteps!=0 & !is.na(MoodAct2014$mood)),]
-MoodAct2014$Date_mood=as.Date(MoodAct2014$Date_mood,'%m/%d/%Y')
-MoodAct2014.daily=data.frame(Date_mood=as.Date(character(),'%Y-%m-%d'),sample_num=integer(),mood_mean=integer(),mood_sd=double(),
+MoodAct=merge(Mood,Activity,by.x=c("userid","Date_mood"),by.y=c("Id","ActivityDate"),sort=TRUE)
+MoodAct=MoodAct[which(MoodAct$TotalSteps!=0 & !is.na(MoodAct$mood)),]
+MoodAct2014=MoodAct[which(MoodAct$Date_mood < as.Date("2015-01-01")),]
+MoodAct2015=MoodAct[which(MoodAct$Date_mood > as.Date("2015-01-01")),]
+MoodAct.daily=data.frame(Date_mood=as.Date(character(),'%Y-%m-%d'),sample_num=integer(),mood_mean=integer(),mood_sd=double(),
                         step_mean=integer(),step_sd=double(),veryactmin_mean=integer(),veryactmin_sd=double(),
                         fairactmin_mean=integer(),fairactmin_sd=double(),lightactmin_mean=integer(),lightactmin_sd=double(),
                         sedmin_mean=integer(),sedmin_sd=double(),cal_mean=integer(),cal_sd=double())
-MoodAct2014.Dates=sort(unique(MoodAct2014$Date_mood))
-for (idate in 1:length(MoodAct2014.Dates)){
-  subdate=MoodAct2014[which(MoodAct2014$Date_mood==MoodAct2014.Dates[idate]),]
-  MoodAct2014.daily[idate,"Date_mood"]=MoodAct2014.Dates[idate]
-  MoodAct2014.daily[idate,"sample_num"]=nrow(subdate)
-  MoodAct2014.daily[idate,"mood_mean"]=mean(subdate$mood)
-  MoodAct2014.daily[idate,"mood_sd"]=sd(subdate$mood)
-  MoodAct2014.daily[idate,"step_mean"]=mean(subdate$TotalSteps)
-  MoodAct2014.daily[idate,"step_sd"]=sd(subdate$TotalSteps)
-  MoodAct2014.daily[idate,"veryactmin_mean"]=mean(subdate$VeryActiveMinutes)
-  MoodAct2014.daily[idate,"veryactmin_sd"]=sd(subdate$VeryActiveMinutes)
-  MoodAct2014.daily[idate,"fairactmin_mean"]=mean(subdate$FairlyActiveMinutes)
-  MoodAct2014.daily[idate,"fairactmin_sd"]=sd(subdate$FairlyActiveMinutes)
-  MoodAct2014.daily[idate,"lightactmin_mean"]=mean(subdate$LightlyActiveMinutes)
-  MoodAct2014.daily[idate,"lightactmin_sd"]=sd(subdate$LightlyActiveMinutes)
-  MoodAct2014.daily[idate,"sedmin_mean"]=mean(subdate$SedentaryMinutes)
-  MoodAct2014.daily[idate,"sedmin_sd"]=sd(subdate$SedentaryMinutes)
-  MoodAct2014.daily[idate,"cal_mean"]=mean(subdate$Calories)
-  MoodAct2014.daily[idate,"cal_sd"]=sd(subdate$Calories)
+MoodAct.Dates=sort(unique(MoodAct$Date_mood))
+for (idate in 1:length(MoodAct.Dates)){
+  subdate=MoodAct[which(MoodAct$Date_mood==MoodAct.Dates[idate]),]
+  MoodAct.daily[idate,"Date_mood"]=MoodAct.Dates[idate]
+  MoodAct.daily[idate,"sample_num"]=nrow(subdate)
+  MoodAct.daily[idate,"mood_mean"]=mean(subdate$mood)
+  MoodAct.daily[idate,"mood_sd"]=sd(subdate$mood)
+  MoodAct.daily[idate,"step_mean"]=mean(subdate$TotalSteps)
+  MoodAct.daily[idate,"step_sd"]=sd(subdate$TotalSteps)
+  MoodAct.daily[idate,"veryactmin_mean"]=mean(subdate$VeryActiveMinutes)
+  MoodAct.daily[idate,"veryactmin_sd"]=sd(subdate$VeryActiveMinutes)
+  MoodAct.daily[idate,"fairactmin_mean"]=mean(subdate$FairlyActiveMinutes)
+  MoodAct.daily[idate,"fairactmin_sd"]=sd(subdate$FairlyActiveMinutes)
+  MoodAct.daily[idate,"lightactmin_mean"]=mean(subdate$LightlyActiveMinutes)
+  MoodAct.daily[idate,"lightactmin_sd"]=sd(subdate$LightlyActiveMinutes)
+  MoodAct.daily[idate,"sedmin_mean"]=mean(subdate$SedentaryMinutes)
+  MoodAct.daily[idate,"sedmin_sd"]=sd(subdate$SedentaryMinutes)
+  MoodAct.daily[idate,"cal_mean"]=mean(subdate$Calories)
+  MoodAct.daily[idate,"cal_sd"]=sd(subdate$Calories)
 }
+MoodAct2014.daily=MoodAct.daily[which(MoodAct.daily$Date_mood < as.Date("2015-01-01")),]
+MoodAct2015.daily=MoodAct.daily[which(MoodAct.daily$Date_mood > as.Date("2015-01-01")),]
 #### correlation ####
 MoodAct2014.corr.stepvsmood=rcorr(MoodAct2014$mood,MoodAct2014$TotalSteps)
 MoodAct2014.corr.veryvsmood=rcorr(MoodAct2014$mood,MoodAct2014$VeryActiveMinutes)
@@ -435,6 +458,12 @@ MoodAct2014.corr.fairvsmood=rcorr(MoodAct2014$mood,MoodAct2014$FairlyActiveMinut
 MoodAct2014.corr.lightvsmood=rcorr(MoodAct2014$mood,MoodAct2014$LightlyActiveMinutes)
 MoodAct2014.corr.sedvsmood=rcorr(MoodAct2014$mood,MoodAct2014$SedentaryMinutes)
 MoodAct2014.corr.calvsmood=rcorr(MoodAct2014$mood,MoodAct2014$Calories)
+MoodAct2015.corr.stepvsmood=rcorr(MoodAct2015$mood,MoodAct2015$TotalSteps)
+MoodAct2015.corr.veryvsmood=rcorr(MoodAct2015$mood,MoodAct2015$VeryActiveMinutes)
+MoodAct2015.corr.fairvsmood=rcorr(MoodAct2015$mood,MoodAct2015$FairlyActiveMinutes)
+MoodAct2015.corr.lightvsmood=rcorr(MoodAct2015$mood,MoodAct2015$LightlyActiveMinutes)
+MoodAct2015.corr.sedvsmood=rcorr(MoodAct2015$mood,MoodAct2015$SedentaryMinutes)
+MoodAct2015.corr.calvsmood=rcorr(MoodAct2015$mood,MoodAct2015$Calories)
 #### plot mood/steps ####
 par(mar=c(5,4,4,6)+0.1)
 plot(MoodAct2014.daily$Date_mood,MoodAct2014.daily$mood_mean,type="o",xlab="Date",ylab="Mood",ylim=c(0,10),col="blue")
@@ -443,15 +472,36 @@ plot(MoodAct2014.daily$Date_mood,MoodAct2014.daily$step_mean,type="o",axes=FALSE
 axis(side=4,at=pretty(range(MoodAct2014.daily$step_mean)))
 mtext("steps",side=4,line=3)
 legend("topright",bty="n",c("Mood","Steps"),lty=c(1,1),lwd=c(2,2),col=c("blue","green"))
+title("Mood vs Step 2014")
+
+par(mar=c(5,4,4,6)+0.1)
+plot(MoodAct2015.daily$Date_mood,MoodAct2015.daily$mood_mean,type="o",xlab="Date",ylab="Mood",ylim=c(0,10),col="blue")
+par(new=TRUE)
+plot(MoodAct2015.daily$Date_mood,MoodAct2015.daily$step_mean,type="o",axes=FALSE,bty="n",xlab="",ylab="",col="green")
+axis(side=4,at=pretty(range(MoodAct2015.daily$step_mean)))
+mtext("steps",side=4,line=3)
+legend("topright",bty="n",c("Mood","Steps"),lty=c(1,1),lwd=c(2,2),col=c("blue","green"))
+title("Mood vs Step 2015")
+
 #### plot mood/sedentary minutes ####
 par(mar=c(5,4,4,6)+0.1)
-plot(MoodAct2014.daily$Date_mood,MoodAct2014.daily$mood_mean,type="l",xlab="Date",ylab="Mood",main="Mood and sedentary minutes",ylim=c(2,10),col="blue")
+plot(MoodAct2014.daily$Date_mood,MoodAct2014.daily$mood_mean,type="l",xlab="Date",ylab="Mood",main="Mood and sedentary minutes 2014",ylim=c(2,10),col="blue")
 par(new=TRUE);newrange=c(100,1300)
 plot(MoodAct2014.daily$Date_mood,MoodAct2014.daily$sedmin_mean,type="l",axes=FALSE,ylim=newrange,bty="n",xlab="",ylab="",col="black")
 axis(side=4,at=pretty(newrange))
 mtext("minutes",side=4,line=3)
 MoodAct2014.daily.nonsed=MoodAct2014.daily$veryactmin_mean+MoodAct2014.daily$fairactmin_mean+MoodAct2014.daily$lightactmin_mean
 #lines(MoodAct2014.daily$Date_mood,MoodAct2014.daily.nonsed,type="l",col="violet")
+legend("topleft",bty="n",c("Mood","sedentary_minute"),lty=c(1,1),lwd=c(2,2),col=c("blue","black"))
+
+par(mar=c(5,4,4,6)+0.1)
+plot(MoodAct2015.daily$Date_mood,MoodAct2015.daily$mood_mean,type="l",xlab="Date",ylab="Mood",main="Mood and sedentary minutes 2015",ylim=c(2,10),col="blue")
+par(new=TRUE);newrange=c(100,1300)
+plot(MoodAct2015.daily$Date_mood,MoodAct2015.daily$sedmin_mean,type="l",axes=FALSE,ylim=newrange,bty="n",xlab="",ylab="",col="black")
+axis(side=4,at=pretty(newrange))
+mtext("minutes",side=4,line=3)
+MoodAct2015.daily.nonsed=MoodAct2015.daily$veryactmin_mean+MoodAct2015.daily$fairactmin_mean+MoodAct2015.daily$lightactmin_mean
+#lines(MoodAct2015.daily$Date_mood,MoodAct2015.daily.nonsed,type="l",col="violet")
 legend("topleft",bty="n",c("Mood","sedentary_minute"),lty=c(1,1),lwd=c(2,2),col=c("blue","black"))
 #### plot mood/activity hours ####
 par(mar=c(5,4,4,6)+0.1)
@@ -463,6 +513,18 @@ mtext("minutes",side=4,line=3)
 lines(MoodAct2014.daily$Date_mood,MoodAct2014.daily$veryactmin_mean,type="o",col="red")
 lines(MoodAct2014.daily$Date_mood,MoodAct2014.daily$fairactmin_mean,type="o",col="orange")
 legend("topright",bty="n",c("Mood","very_active","fair_active","light_active"),lty=c(1,1),lwd=c(1,1),col=c("blue","red","orange","cyan"))
+title("Mood vs Activity 2014")
+
+par(mar=c(5,4,4,6)+0.1)
+plot(MoodAct2015.daily$Date_mood,MoodAct2015.daily$mood_mean,type="o",xlab="Date",ylab="Mood",ylim=c(0,10),col="blue")
+par(new=TRUE);newrange=range(c(MoodAct2015.daily$veryactmin_mean,MoodAct2015.daily$fairactmin_mean,MoodAct2015.daily$lightactmin_mean))
+plot(MoodAct2015.daily$Date_mood,MoodAct2015.daily$lightactmin_mean,type="o",axes=FALSE,bty="n",ylim=newrange,xlab="",ylab="",col="cyan")
+axis(side=4,at=pretty(newrange))
+mtext("minutes",side=4,line=3)
+lines(MoodAct2015.daily$Date_mood,MoodAct2015.daily$veryactmin_mean,type="o",col="red")
+lines(MoodAct2015.daily$Date_mood,MoodAct2015.daily$fairactmin_mean,type="o",col="orange")
+legend("topright",bty="n",c("Mood","very_active","fair_active","light_active"),lty=c(1,1),lwd=c(1,1),col=c("blue","red","orange","cyan"))
+title("Mood vs Activity 2015")
 #### plot mood/calories ####
 par(mar=c(5,4,4,6)+0.1)
 plot(MoodAct2014.daily$Date_mood,MoodAct2014.daily$mood_mean,type="l",xlab="Date",ylab="Mood",ylim=c(2,10),col="blue")
@@ -471,34 +533,52 @@ plot(MoodAct2014.daily$Date_mood,MoodAct2014.daily$cal_mean,type="l",axes=FALSE,
 axis(side=4,at=pretty(range(MoodAct2014.daily$cal_mean)))
 mtext("C",side=4,line=3)
 legend("topright",bty="n",c("Mood","Calories"),lty=c(1,1),lwd=c(2,2),col=c("blue","purple"))
+title("Mood vs Calories 2014")
+
+par(mar=c(5,4,4,6)+0.1)
+plot(MoodAct2015.daily$Date_mood,MoodAct2015.daily$mood_mean,type="l",xlab="Date",ylab="Mood",ylim=c(2,10),col="blue")
+par(new=TRUE);newrange=c(100,1300)
+plot(MoodAct2015.daily$Date_mood,MoodAct2015.daily$cal_mean,type="l",axes=FALSE,bty="n",xlab="",ylab="",col="purple")
+axis(side=4,at=pretty(range(MoodAct2015.daily$cal_mean)))
+mtext("C",side=4,line=3)
+legend("topright",bty="n",c("Mood","Calories"),lty=c(1,1),lwd=c(2,2),col=c("blue","purple"))
+title("Mood vs Calories 2015")
+
 ###### Mood & Sleep ######
-Sleep2014$SleepDate=substr(Sleep2014$SleepDay,1,nchar(as.character(Sleep2014$SleepDay))-12)
-MoodSleep2014=merge(Mood2014,Sleep2014,by.x=c("userid","Date_mood"),by.y=c("Id","SleepDate"),sort=TRUE)
-MoodSleep2014=MoodSleep2014[which(MoodSleep2014$TotalMinutesAsleep!=0 & !is.na(MoodSleep2014$mood)),]
-MoodSleep2014$Date_mood=as.Date(MoodSleep2014$Date_mood,'%m/%d/%Y')
-MoodSleep2014$Ratio=MoodSleep2014$TotalMinutesAsleep/MoodSleep2014$TotalTimeInBed
-MoodSleep2014.daily=data.frame(Date_mood=as.Date(character(),'%Y-%m-%d'),sample_num=integer(),mood_mean=integer(),mood_sd=double(),
+MoodSleep=merge(Mood,Sleep,by.x=c("userid","Date_mood"),by.y=c("Id","SleepDay"),sort=TRUE)
+MoodSleep=MoodSleep[which(MoodSleep$TotalMinutesAsleep!=0 & !is.na(MoodSleep$mood)),]
+MoodSleep$Ratio=MoodSleep$TotalMinutesAsleep/MoodSleep$TotalTimeInBed
+MoodSleep.daily=data.frame(Date_mood=as.Date(character(),'%Y-%m-%d'),sample_num=integer(),mood_mean=integer(),mood_sd=double(),
                              asleep_mean=integer(),asleep_sd=double(),inbed_mean=integer(),inbed_sd=double(),
                              ratio_mean=double(),ratio_sd=double())
-MoodSleep2014.Dates=sort(unique(MoodSleep2014$Date_mood))
-for (idate in 1:length(MoodSleep2014.Dates)){
-  subdate=MoodSleep2014[which(MoodSleep2014$Date_mood==MoodSleep2014.Dates[idate]),]
-  MoodSleep2014.daily[idate,"Date_mood"]=MoodSleep2014.Dates[idate]
-  MoodSleep2014.daily[idate,"sample_num"]=nrow(subdate)
-  MoodSleep2014.daily[idate,"mood_mean"]=mean(subdate$mood)
-  MoodSleep2014.daily[idate,"mood_sd"]=sd(subdate$mood)
-  MoodSleep2014.daily[idate,"asleep_mean"]=mean(subdate$TotalMinutesAsleep)
-  MoodSleep2014.daily[idate,"asleep_sd"]=sd(subdate$TotalMinutesAsleep)
-  MoodSleep2014.daily[idate,"inbed_mean"]=mean(subdate$TotalTimeInBed)
-  MoodSleep2014.daily[idate,"inbed_sd"]=sd(subdate$TotalTimeInBed)
-  MoodSleep2014.daily[idate,"ratio_mean"]=mean(subdate$Ratio)
-  MoodSleep2014.daily[idate,"ratio_sd"]=sd(subdate$Ratio)
+MoodSleep.Dates=sort(unique(MoodSleep$Date_mood))
+for (idate in 1:length(MoodSleep.Dates)){
+  subdate=MoodSleep[which(MoodSleep$Date_mood==MoodSleep.Dates[idate]),]
+  MoodSleep.daily[idate,"Date_mood"]=MoodSleep.Dates[idate]
+  MoodSleep.daily[idate,"sample_num"]=nrow(subdate)
+  MoodSleep.daily[idate,"mood_mean"]=mean(subdate$mood)
+  MoodSleep.daily[idate,"mood_sd"]=sd(subdate$mood)
+  MoodSleep.daily[idate,"asleep_mean"]=mean(subdate$TotalMinutesAsleep)
+  MoodSleep.daily[idate,"asleep_sd"]=sd(subdate$TotalMinutesAsleep)
+  MoodSleep.daily[idate,"inbed_mean"]=mean(subdate$TotalTimeInBed)
+  MoodSleep.daily[idate,"inbed_sd"]=sd(subdate$TotalTimeInBed)
+  MoodSleep.daily[idate,"ratio_mean"]=mean(subdate$Ratio)
+  MoodSleep.daily[idate,"ratio_sd"]=sd(subdate$Ratio)
 }
+MoodSleep2014=MoodSleep[which(MoodSleep$Date_mood < as.Date("2015-01-01")),]
+MoodSleep2015=MoodSleep[which(MoodSleep$Date_mood > as.Date("2015-01-01")),]
+MoodSleep2014.daily=MoodSleep.daily[which(MoodSleep.daily$Date_mood < as.Date("2015-01-01")),]
+MoodSleep2015.daily=MoodSleep.daily[which(MoodSleep.daily$Date_mood > as.Date("2015-01-01")),]
 #### correlation ####
 MoodSleep2014.corr.asleepvsmood=rcorr(MoodSleep2014$mood,MoodSleep2014$TotalMinutesAsleep)
 MoodSleep2014.corr.inbedvsmood=rcorr(MoodSleep2014$mood,MoodSleep2014$TotalTimeInBed)
 MoodSleep2014.corr.ratiovsmood=rcorr(MoodSleep2014$mood,MoodSleep2014$Ratio)
-MoodAct2014.corr.asleepvsinbed=rcorr(MoodSleep2014$TotalMinutesAsleep,MoodSleep2014$TotalTimeInBed)
+MoodSleep2014.corr.asleepvsinbed=rcorr(MoodSleep2014$TotalMinutesAsleep,MoodSleep2014$TotalTimeInBed)
+MoodSleep2015.corr.asleepvsmood=rcorr(MoodSleep2015$mood,MoodSleep2015$TotalMinutesAsleep)
+MoodSleep2015.corr.inbedvsmood=rcorr(MoodSleep2015$mood,MoodSleep2015$TotalTimeInBed)
+MoodSleep2015.corr.ratiovsmood=rcorr(MoodSleep2015$mood,MoodSleep2015$Ratio)
+MoodSleep2015.corr.asleepvsinbed=rcorr(MoodSleep2015$TotalMinutesAsleep,MoodSleep2015$TotalTimeInBed)
+
 #### plot mood/sleep ####
 par(mar=c(5,4,4,6)+0.1)
 plot(MoodSleep2014.daily$Date_mood,MoodSleep2014.daily$mood_mean,type="o",xlab="Date",ylab="Mood",ylim=c(0,10),col="blue")
@@ -508,6 +588,17 @@ axis(side=4,at=pretty(newrange))
 mtext("minutes",side=4,line=3)
 lines(MoodSleep2014.daily$Date_mood,MoodSleep2014.daily$inbed_mean,type="o",col="peru")
 legend("topright",bty="n",c("Mood","asleep","inbed"),lty=c(1,1),lwd=c(1,1),col=c("blue","plum","peru"))
+title("Mood vs Sleep 2014")
+
+par(mar=c(5,4,4,6)+0.1)
+plot(MoodSleep2015.daily$Date_mood,MoodSleep2015.daily$mood_mean,type="o",xlab="Date",ylab="Mood",ylim=c(0,10),col="blue")
+par(new=TRUE);newrange=c(200,1300)
+plot(MoodSleep2015.daily$Date_mood,MoodSleep2015.daily$asleep_mean,type="o",axes=FALSE,bty="n",ylim=newrange,xlab="",ylab="",col="plum")
+axis(side=4,at=pretty(newrange))
+mtext("minutes",side=4,line=3)
+lines(MoodSleep2015.daily$Date_mood,MoodSleep2015.daily$inbed_mean,type="o",col="peru")
+legend("topright",bty="n",c("Mood","asleep","inbed"),lty=c(1,1),lwd=c(1,1),col=c("blue","plum","peru"))
+title("Mood vs Sleep 2015")
 ####################################### PHQ #######################################
 PHQ.2014=read.csv('z:/Data Analysis/Yu Fang/data/2014data.csv')
 PHQ.BS1.2014=read.csv('z:/Data Analysis/Yu Fang/data/2014BioShort1.csv')
@@ -528,7 +619,7 @@ PHQ.datecol1=c("PHQdate0","PHQdate1","PHQdate2","PHQdate3","PHQdate4")
 PHQ.datecol2=c("PHQdate_BS1","PHQdate_BS2","StartDate_BS1")
 for (icol in PHQ.datecol1){PHQ.BS[[icol]]=as.Date(PHQ.BS[[icol]],format='%d%b%y')}
 for (icol in PHQ.datecol2){PHQ.BS[[icol]]=as.Date(PHQ.BS[[icol]],format='%m/%d/%Y')}
-#### PHQ & Sleep & Activity
+#### PHQ & Sleep & Activity ####
 PHQ.fitbit=PHQ.BS
 PHQ.daterange=10 #average sleep time within 10 days before and after PHQ date
 PHQ.datecols=c("PHQdate0","PHQdate1","PHQdate2","PHQdate3","PHQdate4","PHQdate_BS1","PHQdate_BS2")
@@ -554,16 +645,15 @@ for (isub in 1:nrow(PHQ.fitbit)){
   }
 }
 # simple association between total PHQ and sleep/step
-PHQ.fitbit.sleepcols=c(PHQ.sleepcols,PHQ.phqcols)
-PHQ.fitbit.stepcols=c(PHQ.stepcols,PHQ.phqcols)
-PHQ.fitbit.subsleep=PHQ.fitbit[PHQ.fitbit.sleepcols]
-PHQ.fitbit.substep=PHQ.fitbit[PHQ.fitbit.stepcols]
-PHQ.fitbit.subsleep.long=mapply(c,PHQ.fitbit.subsleep[c(1,8)],PHQ.fitbit.subsleep[c(2,9)],PHQ.fitbit.subsleep[c(3,10)],
-                                PHQ.fitbit.subsleep[c(4,11)],PHQ.fitbit.subsleep[c(5,12)],PHQ.fitbit.subsleep[c(6,13)],PHQ.fitbit.subsleep[c(7,14)])
-PHQ.fitbit.substep.long=mapply(c,PHQ.fitbit.substep[c(1,8)],PHQ.fitbit.substep[c(2,9)],PHQ.fitbit.substep[c(3,10)],
-                                PHQ.fitbit.substep[c(4,11)],PHQ.fitbit.substep[c(5,12)],PHQ.fitbit.substep[c(6,13)],PHQ.fitbit.substep[c(7,14)])
-PHQ.fitbit.subsleep.long=PHQ.fitbit.subsleep.long[which(!is.na(PHQ.fitbit.subsleep.long[,1]) & !is.na(PHQ.fitbit.subsleep.long[,2])),]
-PHQ.fitbit.substep.long=PHQ.fitbit.substep.long[which(!is.na(PHQ.fitbit.substep.long[,1]) & !is.na(PHQ.fitbit.substep.long[,2])),]
-PHQ.corr.sleep=rcorr(PHQ.fitbit.subsleep.long[,1],PHQ.fitbit.subsleep.long[,2])
-PHQ.corr.step=rcorr(PHQ.fitbit.substep.long[,1],PHQ.fitbit.substep.long[,2])
+PHQ.fitbit.subcols=c(PHQ.phqcols,PHQ.sleepcols,PHQ.stepcols)
+PHQ.fitbit.sub=PHQ.fitbit[PHQ.fitbit.subcols]
+PHQ.fitbit.sub.long=mapply(c,PHQ.fitbit.sub[c(1,8,15)],PHQ.fitbit.sub[c(2,9,16)],PHQ.fitbit.sub[c(3,10,17)],
+                           PHQ.fitbit.sub[c(4,11,18)],PHQ.fitbit.sub[c(5,12,19)],PHQ.fitbit.sub[c(6,13,20)],PHQ.fitbit.sub[c(7,14,21)])
+PHQ.fitbit.sub.sleep=PHQ.fitbit.sub.long[which(!is.na(PHQ.fitbit.sub.long[,1]) & !is.na(PHQ.fitbit.sub.long[,2])),]
+PHQ.fitbit.sub.step=PHQ.fitbit.sub.long[which(!is.na(PHQ.fitbit.sub.long[,1]) & !is.na(PHQ.fitbit.sub.long[,3])),]
+PHQ.fitbit.sub.all=PHQ.fitbit.sub.long[which(!is.na(PHQ.fitbit.sub.long[,1]) & !is.na(PHQ.fitbit.sub.long[,2]) & !is.na(PHQ.fitbit.sub.long[,3])),]
+PHQ.corr.sleep=rcorr(PHQ.fitbit.sub.sleep[,1],PHQ.fitbit.sub.sleep[,2])
+PHQ.corr.step=rcorr(PHQ.fitbit.sub.step[,1],PHQ.fitbit.sub.step[,3])
 # linear regression of step and sleep
+PHQ.lm=lm(PHQ.fitbit.sub.all[,1]~PHQ.fitbit.sub.all[,2]+PHQ.fitbit.sub.all[,3])
+summary(PHQ.lm)
