@@ -501,8 +501,8 @@ plot(MoodAct2015.daily$Date_mood,MoodAct2015.daily$sedmin_mean,type="l",axes=FAL
 axis(side=4,at=pretty(newrange))
 mtext("minutes",side=4,line=3)
 MoodAct2015.daily.nonsed=MoodAct2015.daily$veryactmin_mean+MoodAct2015.daily$fairactmin_mean+MoodAct2015.daily$lightactmin_mean
-#lines(MoodAct2015.daily$Date_mood,MoodAct2015.daily.nonsed,type="l",col="violet")
-legend("topleft",bty="n",c("Mood","sedentary_minute"),lty=c(1,1),lwd=c(2,2),col=c("blue","black"))
+lines(MoodAct2015.daily$Date_mood,MoodAct2015.daily.nonsed,type="l",col="violet")
+legend("topleft",bty="n",c("Mood","sedentary_minute","non-sed_minute"),lty=c(1,1),lwd=c(2,2),col=c("blue","black","violet"))
 #### plot mood/activity hours ####
 par(mar=c(5,4,4,6)+0.1)
 plot(MoodAct2014.daily$Date_mood,MoodAct2014.daily$mood_mean,type="o",xlab="Date",ylab="Mood",ylim=c(0,10),col="blue")
@@ -619,9 +619,9 @@ PHQ.datecol1=c("PHQdate0","PHQdate1","PHQdate2","PHQdate3","PHQdate4")
 PHQ.datecol2=c("PHQdate_BS1","PHQdate_BS2","StartDate_BS1")
 for (icol in PHQ.datecol1){PHQ.BS[[icol]]=as.Date(PHQ.BS[[icol]],format='%d%b%y')}
 for (icol in PHQ.datecol2){PHQ.BS[[icol]]=as.Date(PHQ.BS[[icol]],format='%m/%d/%Y')}
-#### PHQ & Sleep & Activity ####
+#### PHQ & Sleep & Activity - is fitbit measure consistent with subjective feelings?####
 PHQ.fitbit=PHQ.BS
-PHQ.daterange=10 #average sleep time within 10 days before and after PHQ date
+PHQ.daterange=14 #PHQ measures last two weeks
 PHQ.datecols=c("PHQdate0","PHQdate1","PHQdate2","PHQdate3","PHQdate4","PHQdate_BS1","PHQdate_BS2")
 PHQ.sleepcols=c("sleep0","sleep1","sleep2","sleep3","sleep4","sleep_BS1","sleep_BS2")
 PHQ.stepcols=c("step0","step1","step2","step3","step4","step_BS1","step_BS2")
@@ -633,8 +633,8 @@ for (isub in 1:nrow(PHQ.fitbit)){
   for (idate in 1:length(PHQ.datecols)){
     datetmp=PHQ.fitbit[[PHQ.datecols[idate]]][isub]
     if (!is.null(datetmp)){
-      sleeptmp=Sleep[which(Sleep$Id==sub & abs(Sleep$SleepDay-datetmp)<PHQ.daterange),]
-      steptmp=Activity[which(Activity$Id==sub & abs(Activity$ActivityDate-datetmp)<PHQ.daterange),]
+      sleeptmp=Sleep[which(Sleep$Id==sub & datetmp-Sleep$SleepDay<PHQ.daterange & datetmp-Sleep$SleepDay>=0),]
+      steptmp=Activity[which(Activity$Id==sub & datetmp-Activity$ActivityDate<PHQ.daterange & datetmp-Activity$ActivityDate>=0),]
       if (nrow(sleeptmp)!=0) {
         PHQ.fitbit[[PHQ.sleepcols[idate]]][isub]=mean(sleeptmp$TotalMinutesAsleep,na.rm = TRUE)
       }
@@ -657,3 +657,5 @@ PHQ.corr.step=rcorr(PHQ.fitbit.sub.step[,1],PHQ.fitbit.sub.step[,3])
 # linear regression of step and sleep
 PHQ.lm=lm(PHQ.fitbit.sub.all[,1]~PHQ.fitbit.sub.all[,2]+PHQ.fitbit.sub.all[,3])
 summary(PHQ.lm)
+# PHQ-3 sleep vs fitbit sleep (categorical?)
+
