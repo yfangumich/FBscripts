@@ -18,7 +18,6 @@ library("gtools")
 ## Sleep
 SleepSummary=function(dayfile,subj,allcols,InternStart){
   sub=dayfile[which(dayfile$Id %in% subj),]
-  subvalid=sub[which(sub$TotalMinutesAsleep!=0 & sub$TotalTimeInBed!=0),]
   start=subvalid$SleepDay[1]; end=subvalid$SleepDay[nrow(subvalid)]
   total=nrow(sub);valid=nrow(subvalid)
   
@@ -50,7 +49,6 @@ SleepSummary=function(dayfile,subj,allcols,InternStart){
 ## DailyActivity
 ActivitySummary=function(dayfile,subj,allcols,InternStart){
   sub=dayfile[which(dayfile$Id %in% subj),]
-  subvalid=sub[which(sub$TotalSteps!=0),]
   start=subvalid$ActivityDate[1];end=subvalid$ActivityDate[nrow(subvalid)]
   total=nrow(sub);valid=nrow(subvalid)
   subvalid.pre=subvalid[which(subvalid$ActivityDate < InternStart),]
@@ -153,7 +151,7 @@ Sleep2015=read.csv('work//Fitbit//2015_Cohort_all/sleepDay_merged.csv')
 Sleep2015$SleepDay=as.Date(substr(as.character(Sleep2015$SleepDay),1,nchar(as.character(Sleep2015$SleepDay))-12),'%m/%d/%Y')
 sleep.SubjIDs.2015=unique(Sleep2015$Id)
 Sleep=rbind(Sleep2014,Sleep2015)
-
+Sleep=Sleep[which(Sleep$TotalMinutesAsleep!=0 & Sleep$TotalTimeInBed!=0),]
 # Summary for each subject 2014
 sleep.charcols=c("id");sleep.datecols=c("start","end")
 sleep.numcols=c("total","valid",
@@ -161,6 +159,7 @@ sleep.numcols=c("total","valid",
                 "meanMinAsleep.pre","meanMinInbed.pre","meanAsleepInbedratio.pre","sdAsleep.pre","sdInbed.pre","longestAsleep.pre","shortestAsleep.pre","longestInbed.pre","shortestInbed.pre",
                 "meanMinAsleep.post","meanMinInbed.post","meanAsleepInbedratio.post","sdAsleep.post","sdInbed.post","longestAsleep.post","shortestAsleep.post","longestInbed.post","shortestInbed.post")
 sleep.allcols=c(sleep.charcols,sleep.datecols,sleep.numcols)
+# needs to combine the below two parts
 for (i in 1:length(sleep.SubjIDs.2014)){
   startdate=as.Date(StartDates$StartDate[StartDates$USERID %in% sleep.SubjIDs.2014[i]],"%m/%d/%Y")
   t=SleepSummary(Sleep2014,sleep.SubjIDs.2014[i],sleep.allcols,startdate)
@@ -201,6 +200,7 @@ activity.SubjIDs.2014=unique(Activity2014$Id);activity.SubjIDs.2015=unique(Activ
 Activity2014$ActivityDate=as.Date(Activity2014$ActivityDate,'%m/%d/%Y')
 Activity2015$ActivityDate=as.Date(Activity2015$ActivityDate,'%m/%d/%Y')
 Activity=rbind(Activity2014,Activity2015)
+Activity=Activity[which(Activity$TotalSteps!=0),]
 ## Steps Summary
 activity.charcols=c("id");activity.datecols=c("start","end")
 activity.numcols=c("total","valid","meanSteps","sdSteps","longestSteps","shortestSteps",
@@ -383,12 +383,25 @@ screenreg(summary(Summary.stephr.nest.aov))
 write.csv(xtable(Summary.stephr.nest.aov),file="work/Fitbit/FBscripts/test.csv",sep=",")
 xtable(summary(Summary.stephr.nest.aov))
 ####################################### Mood #######################################
+# 2014 (remove duplicated rows, and take average if duplicated id & date have different mood ratings)
 Mood2014=read.csv('Z:/Data Analysis/Yu Fang/data/Mood_2014_all.csv',stringsAsFactors=FALSE)
 Mood2014$Date_mood=as.Date(as.character(Mood2014$Date_mood),'%m/%d/%Y')
+Mood2014=Mood2014[which(!is.na(Mood2014$mood)),]
+Mood2014=Mood2014[!duplicated(Mood2014),]
+tmp2014=Mood2014;tmp2014$iddate=paste(tmp2014$userid,tmp2014$Date_mood,sep="_")
+dup2014=tmp2014[duplicated(tmp2014$iddate),]
+uniq2014=tmp2014[!duplicated(tmp2014$iddate),]
+intersect2014=merge(dup2014,uniq2014,by=c("userid","Date_mood"))
+intersect2014$mood=(intersect2014$mood.x+intersect2014$mood.y)/2
+intersect2014=intersect2014[c("userid","Date_mood","mood")]
+tmp2014=tmp2014[which(!(tmp2014$iddate %in% dup2014$iddate)),]
+tmp2014=tmp2014[c("userid","Date_mood","mood")]
+Mood2014=rbind(tmp2014,intersect2014)
+# 2015 (checked, doesn't have duplicated rows)
 Mood2015.raw=read.csv('Z:/Data Analysis/Yu Fang/data/Mood_2015_all.csv',stringsAsFactors=FALSE)
 Mood2015.raw[Mood2015.raw=="null"]=NA
 Mood2015=data.frame(userid=character(),Date_mood=character(),mood=integer())
-f1=function(df){
+fmood=function(df){
   df=data.frame(lapply(df,as.integer))
   df=df[,colSums(is.na(df))<nrow(df)]
   subframe=data.frame(userid=rep(as.character(df$USERID),ncol(df)-1),Date_mood=rep(NA,ncol(df)-1),mood=rep(NA,ncol(df)-1))
@@ -397,10 +410,12 @@ f1=function(df){
   return(subframe)
 }
 for (isub in 1:nrow(Mood2015.raw)){
-  Mood2015=rbind(Mood2015,f1(Mood2015.raw[isub,]))
+  Mood2015=rbind(Mood2015,fmood(Mood2015.raw[isub,]))
 }
 Mood2015$userid=as.character(Mood2015$userid)
+# combine two years
 Mood=rbind(Mood2014,Mood2015)
+Mood=Mood[which(!is.na(Mood$mood)),]
 #### Mood Summary ####
 mood.charcols=c("id");mood.datecols=c("start","end")
 mood.numcols=c("total","valid","meanMood.pre","sdMood.pre","meanMood.post","sdMood.post")
@@ -422,7 +437,6 @@ Summary.mood.2015=Summary.mood[which(Summary.mood$end > as.Date("2015-01-01")),]
 mood.model.paired.2015=t.test(Summary.mood.2015$meanMood.pre,Summary.mood.2015$meanMood.post,paired=T)
 ###### Mood & Activity ######
 MoodAct=merge(Mood,Activity,by.x=c("userid","Date_mood"),by.y=c("Id","ActivityDate"),sort=TRUE)
-MoodAct=MoodAct[which(MoodAct$TotalSteps!=0 & !is.na(MoodAct$mood)),]
 MoodAct2014=MoodAct[which(MoodAct$Date_mood < as.Date("2015-01-01")),]
 MoodAct2015=MoodAct[which(MoodAct$Date_mood > as.Date("2015-01-01")),]
 MoodAct.daily=data.frame(Date_mood=as.Date(character(),'%Y-%m-%d'),sample_num=integer(),mood_mean=integer(),mood_sd=double(),
@@ -599,6 +613,91 @@ mtext("minutes",side=4,line=3)
 lines(MoodSleep2015.daily$Date_mood,MoodSleep2015.daily$inbed_mean,type="o",col="peru")
 legend("topright",bty="n",c("Mood","asleep","inbed"),lty=c(1,1),lwd=c(1,1),col=c("blue","plum","peru"))
 title("Mood vs Sleep 2015")
+
+#### personal average data ####
+# Activity
+ncolMA=ncol(MoodAct)
+for (isubj in 1:length(unique(MoodAct$userid))){
+  subMoodAct=MoodAct[which(MoodAct$userid==unique(MoodAct$userid)[isubj]),]
+  subaveragedata=colMeans(subMoodAct[,3:ncolMA])
+  subaverage=cbind(subMoodAct[1,1],data.frame(as.list(subaveragedata)))
+  names(subaverage)[1]="userid"
+  if (isubj==1)
+    MoodActAverage=subaverage
+  else
+    MoodActAverage=rbind(MoodActAverage,subaverage)
+}
+MoodActModel=lm(mood~TotalSteps+TotalDistance+VeryActiveDistance+ModeratelyActiveDistance+LightActiveDistance+SedentaryActiveDistance+VeryActiveMinutes+FairlyActiveMinutes+LightlyActiveMinutes+SedentaryMinutes+Calories,
+                data=MoodActAverage)
+summary(MoodActModel)
+# Sleep
+ncolMS=ncol(MoodSleep)
+for (isubj in 1:length(unique(MoodSleep$userid))){
+  subMoodSleep=MoodSleep[which(MoodSleep$userid==unique(MoodSleep$userid)[isubj]),]
+  subaveragedata=colMeans(subMoodSleep[,3:ncolMS])
+  subaverage=cbind(subMoodSleep[1,1],data.frame(as.list(subaveragedata)))
+  names(subaverage)[1]="userid"
+  if (isubj==1)
+    MoodSleepAverage=subaverage
+  else
+    MoodSleepAverage=rbind(MoodSleepAverage,subaverage)
+}
+MoodSleepModel=lm(mood~TotalMinutesAsleep,data=MoodSleepAverage)
+summary(MoodSleepModel)
+#### consider subject as a random factor ####
+# Mood-Sleep
+MoodSleep$userid=as.factor(MoodSleep$userid)
+MoodSleep$TotalhrAsleep=MoodSleep$TotalMinutesAsleep/60
+MoodSleep.Mixed=lmer(mood ~ TotalhrAsleep + (1|userid),data=MoodSleep,REML=FALSE)
+summary(MoodSleep.Mixed)
+MoodSleep.null=lmer(mood ~ (1|userid),data=MoodSleep,REML=FALSE)
+anova(MoodSleep.null,MoodSleep.Mixed)
+coef(MoodSleep.Mixed)
+MoodSleep.Mixed.randslope=lmer(mood ~ TotalhrAsleep + (1+TotalhrAsleep|userid),data=MoodSleep,REML=FALSE)
+MoodSleep.null.randslope=lmer(mood ~ (1+TotalhrAsleep|userid),data=MoodSleep,REML=FALSE)
+coef(MoodSleep.Mixed.randslope)
+anova(MoodSleep.null.randslope,MoodSleep.Mixed.randslope)
+hist(residuals(MoodSleep.Mixed.randslope))
+qqnorm(residuals(MoodSleep.Mixed.randslope))
+# Mood-Activity
+MoodAct$userid=as.factor(MoodAct$userid)
+MoodAct$TotalStepslog=log10(MoodAct$TotalSteps)
+MoodAct.null=lmer(mood ~ (1|userid),data=MoodAct,REML=FALSE)
+MoodAct.Mixed=lmer(mood ~ TotalStepslog + (1|userid),data=MoodAct,REML=FALSE)
+summary(MoodAct.Mixed)
+anova(MoodAct.null,MoodAct.Mixed)
+MoodAct.Mixed.randslope=lmer(mood ~ TotalStepslog + (1+TotalStepslog|userid),data=MoodAct, REML=FALSE)
+MoodAct.null.randslope=lmer(mood ~ (1+TotalStepslog|userid),data=MoodAct, REML=FALSE)
+summary(MoodAct.Mixed.randslope)
+anova(MoodAct.null.randslope,MoodAct.Mixed.randslope)
+rcorr(MoodAct$TotalSteps,MoodAct$SedentaryMinutes)
+# Mood - Activity & Sleep
+MoodActSleep=merge(MoodAct,MoodSleep,by=c("userid","Date_mood","mood"),all=FALSE)
+MAS.null=lmer(mood ~ (1|userid),data=MoodActSleep,REML=FALSE)
+MAS.act=lmer(mood ~ TotalStepslog + (1|userid),data=MoodActSleep,REML=FALSE)
+MAS.actsleep=lmer(mood ~ TotalStepslog + TotalhrAsleep + (1|userid),data=MoodActSleep,REML=FALSE)
+MAS.actsleep.inter=lmer(mood ~ TotalStepslog*TotalhrAsleep + (1|userid),data=MoodActSleep,REML=FALSE)
+summary(MAS.actsleep)
+anova(MAS.null,MAS.act,MAS.actsleep,MAS.actsleep.inter)
+hist(residuals(MAS.actsleep))
+qqnorm(residuals(MAS.actsleep))
+
+MAS.null.rs=lmer(mood ~ (1+TotalStepslog|userid),data=MoodActSleep,REML=FALSE)
+MAS.act.rs=lmer(mood ~ TotalStepslog + (1+TotalStepslog|userid),data=MoodActSleep,REML=FALSE)
+MAS.actsleep.rs=lmer(mood ~ TotalStepslog + TotalhrAsleep + (1+TotalStepslog|userid),data=MoodActSleep,REML=FALSE)
+MAS.actsleep.inter.rs=lmer(mood ~ TotalStepslog*TotalhrAsleep + (1+TotalStepslog|userid),data=MoodActSleep,REML=FALSE)
+anova(MAS.null.rs,MAS.act.rs,MAS.actsleep.rs,MAS.actsleep.inter.rs)
+hist(residuals(MAS.actsleep.rs))
+qqnorm(residuals(MAS.actsleep.rs))
+
+MAS.null.rs=lmer(mood ~ (1+TotalhrAsleep|userid),data=MoodActSleep,REML=FALSE)
+MAS.sleep.rs=lmer(mood ~ TotalhrAsleep + (1+TotalhrAsleep|userid),data=MoodActSleep,REML=FALSE)
+MAS.actsleep.rs=lmer(mood ~ TotalStepslog + TotalhrAsleep + (1+TotalhrAsleep|userid),data=MoodActSleep,REML=FALSE)
+MAS.actsleep.inter.rs=lmer(mood ~ TotalStepslog*TotalhrAsleep + (1+TotalhrAsleep|userid),data=MoodActSleep,REML=FALSE)
+screenreg(MAS.actsleep.rs)
+anova(MAS.null.rs,MAS.sleep.rs,MAS.actsleep.rs,MAS.actsleep.inter.rs)
+hist(residuals(MAS.actsleep.rs))
+qqnorm(residuals(MAS.actsleep.rs))
 ####################################### PHQ #######################################
 PHQ.2014=read.csv('z:/Data Analysis/Yu Fang/data/2014data.csv')
 PHQ.BS1.2014=read.csv('z:/Data Analysis/Yu Fang/data/2014BioShort1.csv')
@@ -658,4 +757,13 @@ PHQ.corr.step=rcorr(PHQ.fitbit.sub.step[,1],PHQ.fitbit.sub.step[,3])
 PHQ.lm=lm(PHQ.fitbit.sub.all[,1]~PHQ.fitbit.sub.all[,2]+PHQ.fitbit.sub.all[,3])
 summary(PHQ.lm)
 # PHQ-3 sleep vs fitbit sleep (categorical?)
-
+PHQ3subcols=c("asleep_BS1","asleep_BS2","sleep_BS1","sleep_BS2")
+PHQ.fitbit.3=PHQ.fitbit[PHQ3subcols]
+PHQ.fitbit.3.long=
+####################################### Self reported Sleep #######################################
+SleepSR=read.csv("Z:././././Data Analysis/Yu Fang/data/data1415sleep_01212016.csv")
+SleepSRPHQ=merge(SleepSR,PHQ.BS,by.y=c("USERID","Year"),by.x=c("UserID","Year"))
+SleepPHQ=merge(SleepSRPHQ,Sleep,by.x=c("UserID","PHQdate1"),by.y=c("Id","SleepDay"))
+SleepPHQ$SleepRatio=SleepPHQ1$sleep24h1/(SleepPHQ1$TotalMinutesAsleep/60)
+m1=lm(SleepRatio ~ ,data=SleepPHQ)
+summary(m1)
