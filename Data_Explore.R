@@ -1,4 +1,4 @@
-# Initialization
+#### Initialization ####
 library("Hmisc")
 library("ggplot2")
 library("reshape2")
@@ -17,9 +17,9 @@ library("gtools")
 ####################################### Functions #######################################
 ## Sleep
 SleepSummary=function(dayfile,subj,allcols,InternStart){
-  sub=dayfile[which(dayfile$Id %in% subj),]
+  subvalid=dayfile[which(dayfile$Id %in% subj),]
   start=subvalid$SleepDay[1]; end=subvalid$SleepDay[nrow(subvalid)]
-  total=nrow(sub);valid=nrow(subvalid)
+  total=nrow(subvalid);valid=nrow(subvalid)
   
   meanasleep=mean(subvalid$TotalMinutesAsleep);meaninbed=mean(subvalid$TotalTimeInBed);meanratio=meanasleep/meaninbed
   sdasleep=sd(subvalid$TotalMinutesAsleep);sdinbed=sd(subvalid$TotalTimeInBed)
@@ -48,9 +48,9 @@ SleepSummary=function(dayfile,subj,allcols,InternStart){
 }
 ## DailyActivity
 ActivitySummary=function(dayfile,subj,allcols,InternStart){
-  sub=dayfile[which(dayfile$Id %in% subj),]
+  subvalid=dayfile[which(dayfile$Id %in% subj),]
   start=subvalid$ActivityDate[1];end=subvalid$ActivityDate[nrow(subvalid)]
-  total=nrow(sub);valid=nrow(subvalid)
+  total=nrow(subvalid);valid=nrow(subvalid)
   subvalid.pre=subvalid[which(subvalid$ActivityDate < InternStart),]
   subvalid.post=subvalid[which(subvalid$ActivityDate >= InternStart),]
   
@@ -150,9 +150,11 @@ sleep.SubjIDs.2014=unique(Sleep2014$Id)
 Sleep2015=read.csv('work//Fitbit//2015_Cohort_all/sleepDay_merged.csv')
 Sleep2015$SleepDay=as.Date(substr(as.character(Sleep2015$SleepDay),1,nchar(as.character(Sleep2015$SleepDay))-12),'%m/%d/%Y')
 sleep.SubjIDs.2015=unique(Sleep2015$Id)
+# day sleep
 Sleep=rbind(Sleep2014,Sleep2015)
 Sleep=Sleep[which(Sleep$TotalMinutesAsleep!=0 & Sleep$TotalTimeInBed!=0),]
-# Summary for each subject 2014
+Sleep.subjIDs=unique(Sleep$Id)
+# Summary for each subject
 sleep.charcols=c("id");sleep.datecols=c("start","end")
 sleep.numcols=c("total","valid",
                 "meanMinAsleep","meanMinInbed","meanAsleepInbedratio","sdAsleep","sdInbed","longestAsleep","shortestAsleep","longestInbed","shortestInbed",
@@ -160,37 +162,29 @@ sleep.numcols=c("total","valid",
                 "meanMinAsleep.post","meanMinInbed.post","meanAsleepInbedratio.post","sdAsleep.post","sdInbed.post","longestAsleep.post","shortestAsleep.post","longestInbed.post","shortestInbed.post")
 sleep.allcols=c(sleep.charcols,sleep.datecols,sleep.numcols)
 # needs to combine the below two parts
-for (i in 1:length(sleep.SubjIDs.2014)){
-  startdate=as.Date(StartDates$StartDate[StartDates$USERID %in% sleep.SubjIDs.2014[i]],"%m/%d/%Y")
-  t=SleepSummary(Sleep2014,sleep.SubjIDs.2014[i],sleep.allcols,startdate)
+for (i in 1:length(Sleep.subjIDs)){
+  startdate=as.Date(StartDates$StartDate[StartDates$USERID %in% Sleep.subjIDs[i]],"%m/%d/%Y")
+  t=SleepSummary(Sleep,Sleep.subjIDs[i],sleep.allcols,startdate)
   for (tcol in sleep.charcols){t[[tcol]]=as.character(t[[tcol]])}
   for (tcol in sleep.numcols){t[[tcol]]=as.numeric(t[[tcol]])}
-  if (i==1){Summary.sleep.2014=t}
-  else{Summary.sleep.2014=rbind(Summary.sleep.2014,t)} 
-}
-for (i in 1:length(sleep.SubjIDs.2015)){
-  startdate=as.Date(StartDates$StartDate[StartDates$USERID %in% sleep.SubjIDs.2015[i]],"%m/%d/%Y")
-  t=SleepSummary(Sleep2015,sleep.SubjIDs.2015[i],sleep.allcols,startdate)
-  for (tcol in sleep.charcols){t[[tcol]]=as.character(t[[tcol]])}
-  for (tcol in sleep.numcols){t[[tcol]]=as.numeric(t[[tcol]])}
-  if (i==1){Summary.sleep.2015=t}
-  else{Summary.sleep.2015=rbind(Summary.sleep.2015,t)} 
+  if (i==1){Summary.sleep=t}
+  else{Summary.sleep=rbind(Summary.sleep,t)} 
 }
 # exclude subject with less than x day's record (x=sleep.recordday)
 sleep.recordday=10
-Summary.sleep.2014=Summary.sleep.2014[which(Summary.sleep.2014$valid>sleep.recordday),]
-Summary.sleep.2015=Summary.sleep.2015[which(Summary.sleep.2015$valid>sleep.recordday & !is.na(Summary.sleep.2015$meanMinAsleep.pre)),]
-Summary.sleep=rbind(Summary.sleep.2014,Summary.sleep.2015)
+Summary.sleep=Summary.sleep[which(Summary.sleep$valid>sleep.recordday),]
+Summary.sleep.2014=Summary.sleep[which(Summary.sleep$end<"2015-01-01"),]
+Summary.sleep.2015=Summary.sleep[which(Summary.sleep$end>"2015-01-01"),]
 # paired ttest of before and after
-sleep.model.paired.meanasleep.2014=t.test(Summary.sleep.2014$meanMinAsleep.pre,Summary.sleep.2014$meanMinAsleep.post,paired=T)
-sleep.model.paired.meanasleep.2015=t.test(Summary.sleep.2015$meanMinAsleep.pre,Summary.sleep.2015$meanMinAsleep.post,paired=T)
-sleep.model.paired.meaninbed.2014=t.test(Summary.sleep.2014$meanMinInbed.pre,Summary.sleep.2014$meanMinInbed.post,paired=T)
-sleep.model.paired.meaninbed.2015=t.test(Summary.sleep.2015$meanMinInbed.pre,Summary.sleep.2015$meanMinInbed.post,paired=T)
-sleep.model.paired.meanasleep=t.test(Summary.sleep$meanMinAsleep.pre,Summary.sleep$meanMinAsleep.post,paired=T)
-sleep.model.paired.meaninbed=t.test(Summary.sleep$meanMinInbed.pre,Summary.sleep$meanMinInbed.post,paired=T)
-sleep.model.paired.meanratio.2014=t.test(Summary.sleep.2014$meanAsleepInbedratio.pre,Summary.sleep.2014$meanAsleepInbedratio.post,paired=T)
-sleep.model.paired.meanratio.2015=t.test(Summary.sleep.2015$meanAsleepInbedratio.pre,Summary.sleep.2015$meanAsleepInbedratio.post,paired=T)
-sleep.model.paired.meanratio=t.test(Summary.sleep$meanAsleepInbedratio.pre,Summary.sleep$meanAsleepInbedratio.post,paired=T)
+sleep.model.paired.meanasleep.2014=t.test(Summary.sleep.2014$meanMinAsleep.pre,Summary.sleep.2014$meanMinAsleep.post,paired=T);sleep.model.paired.meanasleep.2014
+sleep.model.paired.meanasleep.2015=t.test(Summary.sleep.2015$meanMinAsleep.pre,Summary.sleep.2015$meanMinAsleep.post,paired=T);sleep.model.paired.meanasleep.2015
+sleep.model.paired.meanasleep=t.test(Summary.sleep$meanMinAsleep.pre,Summary.sleep$meanMinAsleep.post,paired=T);sleep.model.paired.meanasleep
+sleep.model.paired.meaninbed.2014=t.test(Summary.sleep.2014$meanMinInbed.pre,Summary.sleep.2014$meanMinInbed.post,paired=T);sleep.model.paired.meaninbed.2014
+sleep.model.paired.meaninbed.2015=t.test(Summary.sleep.2015$meanMinInbed.pre,Summary.sleep.2015$meanMinInbed.post,paired=T);sleep.model.paired.meaninbed.2015
+sleep.model.paired.meaninbed=t.test(Summary.sleep$meanMinInbed.pre,Summary.sleep$meanMinInbed.post,paired=T);sleep.model.paired.meaninbed
+sleep.model.paired.meanratio.2014=t.test(Summary.sleep.2014$meanAsleepInbedratio.pre,Summary.sleep.2014$meanAsleepInbedratio.post,paired=T);sleep.model.paired.meanratio.2014
+sleep.model.paired.meanratio.2015=t.test(Summary.sleep.2015$meanAsleepInbedratio.pre,Summary.sleep.2015$meanAsleepInbedratio.post,paired=T);sleep.model.paired.meanratio.2015
+sleep.model.paired.meanratio=t.test(Summary.sleep$meanAsleepInbedratio.pre,Summary.sleep$meanAsleepInbedratio.post,paired=T);sleep.model.paired.meanratio
 
 ####################################### Activity #######################################
 #### daily activity ####
@@ -201,6 +195,7 @@ Activity2014$ActivityDate=as.Date(Activity2014$ActivityDate,'%m/%d/%Y')
 Activity2015$ActivityDate=as.Date(Activity2015$ActivityDate,'%m/%d/%Y')
 Activity=rbind(Activity2014,Activity2015)
 Activity=Activity[which(Activity$TotalSteps!=0),]
+activity.SubjIDs=unique(Activity$Id)
 ## Steps Summary
 activity.charcols=c("id");activity.datecols=c("start","end")
 activity.numcols=c("total","valid","meanSteps","sdSteps","longestSteps","shortestSteps",
@@ -213,52 +208,54 @@ activity.numcols=c("total","valid","meanSteps","sdSteps","longestSteps","shortes
                "meansedmin","sdsedmin","meansedmin.pre","sdsedmin.pre","meansedmin.post","sdsedmin.post",
                "Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday")
 activity.allcols=c(activity.charcols,activity.datecols,activity.numcols)
-for (i in 1:length(activity.SubjIDs.2014)){
-  startdate=as.Date(StartDates$StartDate[StartDates$USERID %in% activity.SubjIDs.2014[i]],"%m/%d/%Y")
-  t=ActivitySummary(Activity2014,activity.SubjIDs.2014[i],activity.allcols,startdate)
+for (i in 1:length(activity.SubjIDs)){
+  startdate=as.Date(StartDates$StartDate[StartDates$USERID %in% activity.SubjIDs[i]],"%m/%d/%Y")
+  t=ActivitySummary(Activity,activity.SubjIDs[i],activity.allcols,startdate)
   for (tcol in activity.charcols){t[[tcol]]=as.character(t[[tcol]])}
   for (tcol in activity.numcols){t[[tcol]]=as.numeric(t[[tcol]])  }
-  if (i==1){Summary.activity.2014=t}
-  else{Summary.activity.2014=rbind(Summary.activity.2014,t)}
-}
-for (i in 1:length(activity.SubjIDs.2015)){
-  startdate=as.Date(StartDates$StartDate[StartDates$USERID %in% activity.SubjIDs.2015[i]],"%m/%d/%Y")
-  t=ActivitySummary(Activity2015,activity.SubjIDs.2015[i],activity.allcols,startdate)
-  for (tcol in activity.charcols){t[[tcol]]=as.character(t[[tcol]])}
-  for (tcol in activity.numcols){t[[tcol]]=as.numeric(t[[tcol]])}
-  if (i==1){Summary.activity.2015=t}
-  else{Summary.activity.2015=rbind(Summary.activity.2015,t)}
+  if (i==1){Summary.activity=t}
+  else{Summary.activity=rbind(Summary.activity,t)}
 }
 #### exclude subject with less than x day's record (x=sleep.recordday) ####
 activity.recordday=10
-Summary.activity.2014=Summary.activity.2014[which(Summary.activity.2014$valid>activity.recordday),]
-Summary.activity.2015=Summary.activity.2015[which(Summary.activity.2015$valid>activity.recordday),]
-Summary.activity=rbind(Summary.activity.2014,Summary.activity.2015)
+Summary.activity=Summary.activity[which(Summary.activity$valid>activity.recordday),]
+Summary.activity.2014=Summary.activity[which(Summary.activity$end<"2015-01-01"),]
+Summary.activity.2015=Summary.activity[which(Summary.activity$end>"2015-01-01"),]
 #### paired ttest of steps/calories/distance before and after ####
-activity.model.paired.meanstep.2014=t.test(Summary.activity.2014$meanSteps.pre,Summary.activity.2014$meanSteps.post,paired=T)
-activity.model.paired.meanstep.2015=t.test(Summary.activity.2015$meanSteps.pre,Summary.activity.2015$meanSteps.post,paired=T)
-activity.model.paired.meanstep=t.test(Summary.activity$meanSteps.pre,Summary.activity$meanSteps.post,paired=T)
-activity.model.paired.meancal.2014=t.test(Summary.activity.2014$meancalories.pre,Summary.activity.2014$meancalories.post,paired=T)
-activity.model.paired.meancal.2015=t.test(Summary.activity.2015$meancalories.pre,Summary.activity.2015$meancalories.post,paired=T)
-activity.model.paired.meancal=t.test(Summary.activity$meancalories.pre,Summary.activity$meancalories.post,paired=T)
-activity.model.paired.meandist.2014=t.test(Summary.activity.2014$meandistance.pre,Summary.activity.2014$meandistance.post,paired=T)
-activity.model.paired.meandist.2015=t.test(Summary.activity.2015$meandistance.pre,Summary.activity.2015$meandistance.post,paired=T)
-activity.model.paired.meandist=t.test(Summary.activity$meandistance.pre,Summary.activity$meandistance.post,paired=T)
-activity.model.paired.meanveryactmin.2014=t.test(Summary.activity.2014$meanveryactmin.pre,Summary.activity.2014$meanveryactmin.post,paired=T)
-activity.model.paired.meanfairactmin.2014=t.test(Summary.activity.2014$meanfairactmin.pre,Summary.activity.2014$meanfairactmin.post,paired=T)
-activity.model.paired.meanlightactmin.2014=t.test(Summary.activity.2014$meanlightactmin.pre,Summary.activity.2014$meanlightactmin.post,paired=T)
-activity.model.paired.meansedmin.2014=t.test(Summary.activity.2014$meansedmin.pre,Summary.activity.2014$meansedmin.post,paired=T)
-activity.model.paired.meanveryactmin.2015=t.test(Summary.activity.2015$meanveryactmin.pre,Summary.activity.2015$meanveryactmin.post,paired=T)
-activity.model.paired.meanfairactmin.2015=t.test(Summary.activity.2015$meanfairactmin.pre,Summary.activity.2015$meanfairactmin.post,paired=T)
-activity.model.paired.meanlightactmin.2015=t.test(Summary.activity.2015$meanlightactmin.pre,Summary.activity.2015$meanlightactmin.post,paired=T)
-activity.model.paired.meansedmin.2015=t.test(Summary.activity.2015$meansedmin.pre,Summary.activity.2015$meansedmin.post,paired=T)
-activity.model.paired.meanveryactmin=t.test(Summary.activity$meanveryactmin.pre,Summary.activity$meanveryactmin.post,paired=T)
-activity.model.paired.meanfairactmin=t.test(Summary.activity$meanfairactmin.pre,Summary.activity$meanfairactmin.post,paired=T)
-activity.model.paired.meanlightactmin=t.test(Summary.activity$meanlightactmin.pre,Summary.activity$meanlightactmin.post,paired=T)
-activity.model.paired.meansedmin=t.test(Summary.activity$meansedmin.pre,Summary.activity$meansedmin.post,paired=T)
+activity.model.paired.meanstep.2014=t.test(Summary.activity.2014$meanSteps.pre,Summary.activity.2014$meanSteps.post,paired=T);activity.model.paired.meanstep.2014
+activity.model.paired.meanstep.2015=t.test(Summary.activity.2015$meanSteps.pre,Summary.activity.2015$meanSteps.post,paired=T);activity.model.paired.meanstep.2015
+activity.model.paired.meanstep=t.test(Summary.activity$meanSteps.pre,Summary.activity$meanSteps.post,paired=T);activity.model.paired.meanstep
+
+activity.model.paired.meancal.2014=t.test(Summary.activity.2014$meancalories.pre,Summary.activity.2014$meancalories.post,paired=T);activity.model.paired.meancal.2014
+activity.model.paired.meancal.2015=t.test(Summary.activity.2015$meancalories.pre,Summary.activity.2015$meancalories.post,paired=T);activity.model.paired.meancal.2015
+activity.model.paired.meancal=t.test(Summary.activity$meancalories.pre,Summary.activity$meancalories.post,paired=T);activity.model.paired.meancal
+
+activity.model.paired.meandist.2014=t.test(Summary.activity.2014$meandistance.pre,Summary.activity.2014$meandistance.post,paired=T);activity.model.paired.meandist.2014
+activity.model.paired.meandist.2015=t.test(Summary.activity.2015$meandistance.pre,Summary.activity.2015$meandistance.post,paired=T);activity.model.paired.meandist.2015
+activity.model.paired.meandist=t.test(Summary.activity$meandistance.pre,Summary.activity$meandistance.post,paired=T);activity.model.paired.meandist
+
+activity.model.paired.meanveryactmin.2014=t.test(Summary.activity.2014$meanveryactmin.pre,Summary.activity.2014$meanveryactmin.post,paired=T);activity.model.paired.meanveryactmin.2014
+activity.model.paired.meanveryactmin.2015=t.test(Summary.activity.2015$meanveryactmin.pre,Summary.activity.2015$meanveryactmin.post,paired=T);activity.model.paired.meanveryactmin.2015
+activity.model.paired.meanveryactmin=t.test(Summary.activity$meanveryactmin.pre,Summary.activity$meanveryactmin.post,paired=T);activity.model.paired.meanveryactmin
+
+activity.model.paired.meanfairactmin.2014=t.test(Summary.activity.2014$meanfairactmin.pre,Summary.activity.2014$meanfairactmin.post,paired=T);activity.model.paired.meanfairactmin.2014
+activity.model.paired.meanfairactmin.2015=t.test(Summary.activity.2015$meanfairactmin.pre,Summary.activity.2015$meanfairactmin.post,paired=T);activity.model.paired.meanfairactmin.2015
+activity.model.paired.meanfairactmin=t.test(Summary.activity$meanfairactmin.pre,Summary.activity$meanfairactmin.post,paired=T);activity.model.paired.meanfairactmin
+
+activity.model.paired.meanlightactmin.2014=t.test(Summary.activity.2014$meanlightactmin.pre,Summary.activity.2014$meanlightactmin.post,paired=T);activity.model.paired.meanlightactmin.2014
+activity.model.paired.meanlightactmin.2015=t.test(Summary.activity.2015$meanlightactmin.pre,Summary.activity.2015$meanlightactmin.post,paired=T);activity.model.paired.meanlightactmin.2015
+activity.model.paired.meanlightactmin=t.test(Summary.activity$meanlightactmin.pre,Summary.activity$meanlightactmin.post,paired=T);activity.model.paired.meanlightactmin
+
+activity.model.paired.meansedmin.2014=t.test(Summary.activity.2014$meansedmin.pre,Summary.activity.2014$meansedmin.post,paired=T);activity.model.paired.meansedmin.2014
+activity.model.paired.meansedmin.2015=t.test(Summary.activity.2015$meansedmin.pre,Summary.activity.2015$meansedmin.post,paired=T);activity.model.paired.meansedmin.2015
+activity.model.paired.meansedmin=t.test(Summary.activity$meansedmin.pre,Summary.activity$meansedmin.post,paired=T);activity.model.paired.meansedmin
+
 ##### correlations of steps vs. calories/distance ####
 activity.corr.stepvscal=rcorr(Summary.activity$meanSteps,Summary.activity$meancalories)
 activity.corr.stepvsdist=rcorr(Summary.activity$meanSteps,Summary.activity$meandistance)
+Summary.activity.variables = Summary.activity[c("meanSteps","meancalories","meandistance","meanveryactmin","meanfairactmin","meanlightactmin","meansedmin")]
+Summary.activity.variables.rcorr=rcorr(as.matrix(Summary.activity.variables))
+write.table(data.frame(Summary.activity.variables.rcorr$P),"work/Fitbit/FBscripts/tmp.csv",sep=",")
 #### weekdays ####
 # Plot weekday scatter plot for each subj
 weekdaynames=c("Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday")
@@ -290,12 +287,14 @@ stephr.charcols=c("id")
 stephr.numcols=c(paste(formatC(0:23,width=2,flag="0"),":00:00.pre",sep=""),paste(formatC(0:23,width=2,flag="0"),":00:00.post",sep=""))
 stephr.allcols=c(stephr.charcols,stephr.numcols)
 Stephr2014=read.csv('work/Fitbit//2014_Cohort_all//hourlySteps_merged.csv')
+Stephr2014$ActivityHour=as.character(as.POSIXct(strptime(as.character(Stephr2014$ActivityHour),"%m/%d/%Y %H:%M")))
 Stephr2015=read.csv('work/Fitbit//2015_Cohort_all/hourlySteps_merged.csv');Stephr2015$Id=as.character(Stephr2015$Id)
+Stephr2015$ActivityHour=as.character(as.POSIXct(strptime(as.character(Stephr2015$ActivityHour),"%m/%d/%Y %I:%M:%S %p")))
 Stephr=rbind(Stephr2014,Stephr2015)
-activity.SubjIDs=unique(Stephr$Id)
-Stephr$ActivityHour=as.character(as.POSIXct(strptime(as.character(Stephr$ActivityHour),"%m/%d/%Y %I:%M:%S %p")))
 Stephr$ActivityDate=substr(Stephr$ActivityHour,1,10)
 Stephr$ActivityHour=substr(Stephr$ActivityHour,12,end)
+
+activity.SubjIDs=unique(Stephr$Id)
 Stephr.collapse=ddply(Stephr,.(Id,ActivityDate),summarise,StepTotal=paste(StepTotal,collapse=','))
 for (i in 1:nrow(Stephr.collapse)){
   tmp=Stephr.collapse$StepTotal[i]
@@ -318,9 +317,9 @@ for (i in 1:length(activity.SubjIDs)){
   } else {print(i)}
 }
 # temporarily create subsets
-#Summary.stephr.backup=Summary.stephr
-#Summary.stephr=Summary.stephr.backup
-#Summary.stephr=Summary.stephr[which(Summary.stephr$id %in% activity.SubjIDs.2014),]
+Summary.stephr.backup=Summary.stephr
+Summary.stephr=Summary.stephr.backup
+Summary.stephr=Summary.stephr[which(Summary.stephr$id %in% activity.SubjIDs.2014),]
 # calculate stats
 Summary.stephr.mean=colMeans(Summary.stephr[,-1])
 Summary.stephr.sd=apply(Summary.stephr[,-1],2,sd)
@@ -629,7 +628,9 @@ for (isubj in 1:length(unique(MoodAct$userid))){
 }
 MoodActModel=lm(mood~TotalSteps+TotalDistance+VeryActiveDistance+ModeratelyActiveDistance+LightActiveDistance+SedentaryActiveDistance+VeryActiveMinutes+FairlyActiveMinutes+LightlyActiveMinutes+SedentaryMinutes+Calories,
                 data=MoodActAverage)
+MoodActModel=lm(mood~TotalSteps,data=MoodActAverage)
 summary(MoodActModel)
+
 # Sleep
 ncolMS=ncol(MoodSleep)
 for (isubj in 1:length(unique(MoodSleep$userid))){
@@ -698,22 +699,70 @@ screenreg(MAS.actsleep.rs)
 anova(MAS.null.rs,MAS.sleep.rs,MAS.actsleep.rs,MAS.actsleep.inter.rs)
 hist(residuals(MAS.actsleep.rs))
 qqnorm(residuals(MAS.actsleep.rs))
+
+# Mood - Activity & Sleep - before/after
+MoodActSleepIntern <- merge(MoodActSleep,StartDates,by.x="userid",by.y="USERID")
+MoodActSleepIntern$StartDate <- as.Date(MoodActSleepIntern$StartDate,format='%m/%d/%Y')
+MoodActSleepIntern$AfterIntern <- (MoodActSleepIntern$Date_mood >= MoodActSleepIntern$StartDate)
+MASIbefore <- MoodActSleepIntern[which(MoodActSleepIntern$AfterIntern==FALSE),]
+MASIafter <- MoodActSleepIntern[which(MoodActSleepIntern$AfterIntern==TRUE),]
+
+MASIb.null <- lmer(mood ~ (1|userid),data=MASIbefore,REML=FALSE)
+MASIb.sleep <- lmer(mood ~ TotalhrAsleep + (1|userid),data=MASIbefore, REML=FALSE );summary(MASIb.sleep)
+MASIb.sleep.rs <- lmer(mood ~ TotalhrAsleep + (1+TotalhrAsleep|userid),data=MASIbefore,REML=FALSE);summary(MASIb.sleep.rs)
+MASIb.act <- lmer(mood ~ TotalStepslog + (1|userid),data=MASIbefore,REML=FALSE);summary(MASIb.act)
+MASIb.act.rs <- lmer(mood ~ TotalStepslog + (1+TotalStepslog|userid),data=MASIbefore,REML=FALSE);summary(MASIb.act.rs)
+MASIb.sleepact <- lmer(mood ~ TotalStepslog + TotalhrAsleep + (1|userid),data=MASIbefore,REML=FALSE);summary(MASIb.sleepact)
+MASIb.sleepact.rs <- lmer(mood ~ TotalStepslog + TotalhrAsleep + (1+TotalStepslog|userid),data=MASIbefore,REML=FALSE);summary(MASIb.sleepact.rs)
+MASIb.sleepact.inter <- lmer(mood ~ TotalStepslog * TotalhrAsleep + (1|userid),data=MASIbefore,REML=FALSE);summary(MASIb.sleepact.inter)
+MASIb.sleepact.inter.rs <- lmer(mood ~ TotalStepslog * TotalhrAsleep + (1+TotalStepslog|userid),data=MASIbefore,REML=FALSE);summary(MASIb.sleepact.inter.rs)
+anova(MASIb.null,MASIb.sleep)
+anova(MASIb.null,MASIb.act)
+anova(MASIb.null,MASIb.sleep,MASIb.sleepact,MASIb.sleepact.inter)
+anova(MASIb.sleep,MASIb.sleep.rs)
+anova(MASIb.act,MASIb.act.rs)
+anova(MASIb.null,MASIb.act.rs,MASIb.sleepact.rs,MASIb.sleepact.inter.rs)
+
+MASIa.null <- lmer(mood ~ (1|userid),data=MASIafter,REML=FALSE)
+MASIa.sleep <- lmer(mood ~ TotalhrAsleep + (1|userid),data=MASIafter, REML=FALSE );summary(MASIa.sleep)
+MASIa.sleep.rs <- lmer(mood ~ TotalhrAsleep + (1+TotalhrAsleep|userid),data=MASIafter,REML=FALSE);summary(MASIa.sleep.rs)
+MASIa.act <- lmer(mood ~ TotalStepslog + (1|userid),data=MASIafter,REML=FALSE);summary(MASIa.act)
+MASIa.act.rs <- lmer(mood ~ TotalStepslog + (1+TotalStepslog|userid),data=MASIafter,REML=FALSE);summary(MASIa.act.rs)
+MASIa.sleepact <- lmer(mood ~ TotalStepslog + TotalhrAsleep + (1|userid),data=MASIafter,REML=FALSE);summary(MASIa.sleepact)
+MASIa.sleepact.inter <- lmer(mood ~ TotalStepslog * TotalhrAsleep + (1|userid),data=MASIafter,REML=FALSE);summary(MASIa.sleepact.inter)
+anova(MASIa.null,MASIa.sleep)
+anova(MASIa.null,MASIa.act)
+anova(MASIa.null,MASIa.sleep,MASIa.sleepact,MASIa.sleepact.inter)
+anova(MASIa.sleep,MASIa.sleep.rs)
+anova(MASIa.act,MASIa.act.rs)
+
+MASI.ba.mood <- lmer(mood ~ AfterIntern + (1|userid),data=MoodActSleepIntern,REML=FALSE);summary(MASI.ba.mood)
+MASI.ba.act <- lmer(TotalStepslog ~ AfterIntern + (1|userid),data=MoodActSleepIntern,REML=FALSE);summary(MASI.ba.act)
+MASI.ba.sleep <- lmer(TotalhrAsleep ~ AfterIntern + (1|userid),data=MoodActSleepIntern,REML=FALSE);summary(MASI.ba.sleep)
+MASI.ba.mood.null <- lmer(mood ~ (1|userid),data=MoodActSleepIntern,REML=FALSE);
+MASI.ba.act.null <- lmer(TotalStepslog ~ (1|userid),data=MoodActSleepIntern,REML=FALSE);
+MASI.ba.sleep.null <- lmer(TotalhrAsleep ~ (1|userid),data=MoodActSleepIntern,REML=FALSE);
+anova(MASI.ba.mood.null,MASI.ba.mood)
+anova(MASI.ba.act.null,MASI.ba.act)
+anova(MASI.ba.sleep.null,MASI.ba.sleep)
+
 ####################################### PHQ #######################################
-PHQ.2014=read.csv('z:/Data Analysis/Yu Fang/data/2014data.csv')
+PHQ=read.csv("Z:././././Data Analysis/Yu Fang/data/data14all_15BLq1q2_PHQ_Sleep_01292016.csv")
+
 PHQ.BS1.2014=read.csv('z:/Data Analysis/Yu Fang/data/2014BioShort1.csv')
 PHQ.BS2.2014=read.csv('z:/Data Analysis/Yu Fang/data/2014BioShort2.csv')
 colnames(PHQ.BS1.2014)=paste(colnames(PHQ.BS1.2014),"BS1",sep="_")
 colnames(PHQ.BS2.2014)=paste(colnames(PHQ.BS2.2014),"BS2",sep="_")
-PHQ.BS.2014=merge(PHQ.2014,PHQ.BS1.2014,by.x="USERID",by.y="USERID_BS1",all.y=TRUE)
-PHQ.BS.2014=merge(PHQ.BS.2014,PHQ.BS2.2014,by.x="USERID",by.y="USERID_BS2",all.y=TRUE)
-PHQ.2015=read.csv('z:/Data Analysis/Yu Fang/data/2015BLQ1.csv')
+PHQ.BS.2014=merge(PHQ,PHQ.BS1.2014,by.x="UserID",by.y="USERID_BS1",all.y=TRUE)
+PHQ.BS.2014=merge(PHQ.BS.2014,PHQ.BS2.2014,by.x="UserID",by.y="USERID_BS2",all.y=TRUE)
+
 PHQ.BS1.2015=read.csv('z:/Data Analysis/Yu Fang/data/2015BioShort1.csv')
 PHQ.BS2.2015=read.csv('z:/Data Analysis/Yu Fang/data/2015BioShort2.csv')
 colnames(PHQ.BS1.2015)=paste(colnames(PHQ.BS1.2015),"BS1",sep="_")
 colnames(PHQ.BS2.2015)=paste(colnames(PHQ.BS2.2015),"BS2",sep="_")
-PHQ.BS.2015=merge(PHQ.2015,PHQ.BS1.2015,by.x="USERID",by.y="USERID_BS1",all.y=TRUE)
+PHQ.BS.2015=merge(PHQ,PHQ.BS1.2015,by.x="UserID",by.y="USERID_BS1",all.y=TRUE)
 PHQ.BS.2015=merge(PHQ.BS.2015,PHQ.BS2.2015,by.x="USERID",by.y="USERID_BS2",all.y=TRUE)
-PHQ.BS=smartbind(PHQ.BS.2014,PHQ.BS.2015)
+
 PHQ.datecol1=c("PHQdate0","PHQdate1","PHQdate2","PHQdate3","PHQdate4")
 PHQ.datecol2=c("PHQdate_BS1","PHQdate_BS2","StartDate_BS1")
 for (icol in PHQ.datecol1){PHQ.BS[[icol]]=as.Date(PHQ.BS[[icol]],format='%d%b%y')}
@@ -761,9 +810,98 @@ PHQ3subcols=c("asleep_BS1","asleep_BS2","sleep_BS1","sleep_BS2")
 PHQ.fitbit.3=PHQ.fitbit[PHQ3subcols]
 PHQ.fitbit.3.long=
 ####################################### Self reported Sleep #######################################
-SleepSR=read.csv("Z:././././Data Analysis/Yu Fang/data/data1415sleep_01212016.csv")
-SleepSRPHQ=merge(SleepSR,PHQ.BS,by.y=c("USERID","Year"),by.x=c("UserID","Year"))
-SleepPHQ=merge(SleepSRPHQ,Sleep,by.x=c("UserID","PHQdate1"),by.y=c("Id","SleepDay"))
-SleepPHQ$SleepRatio=SleepPHQ1$sleep24h1/(SleepPHQ1$TotalMinutesAsleep/60)
-m1=lm(SleepRatio ~ ,data=SleepPHQ)
-summary(m1)
+PHQSleep<-PHQ[which(PHQ$UserID %in% Sleep$Id),]
+PHQSleep$surveyDate1<-as.Date(as.character(PHQSleep$surveyDate1),"%d%b%y")
+PHQSleep$surveyDate2<-as.Date(as.character(PHQSleep$surveyDate2),"%d%b%y")
+# sleep on PHQ date 1
+SleepPHQ1=merge(PHQSleep,Sleep,by.x=c("UserID","surveyDate1"),by.y=c("Id","SleepDay"))
+SleepPHQ1=SleepPHQ1[c("UserID","surveyDate1","Year","sleep24h1","sleepAve1","interest1","down1","asleep1","tired1","appetite1","failure1","concentr1","activity1","suic1","PHQtot1",
+                      "TotalSleepRecords","TotalMinutesAsleep","TotalTimeInBed")]
+SPfactorcols=c("interest1","down1","asleep1","tired1","appetite1","failure1","concentr1","activity1","suic1")
+# way one: factorize the scores (0,1,2,3)
+SleepPHQ1[SPfactorcols]<-lapply(SleepPHQ1[SPfactorcols],as.factor)
+# way two: binarize the scores (0,1)
+SleepPHQ1[SPfactorcols]=ifelse(SleepPHQ1[SPfactorcols]>0,1,0)
+# Add hr and ratio
+SleepPHQ1$TotalHrAsleep=SleepPHQ1$TotalMinutesAsleep/60
+SleepPHQ1$SRvFB=SleepPHQ1$sleep24h1/SleepPHQ1$TotalHrAsleep
+SleepPHQ1$SRvFBbin=SleepPHQ1$SRvFB>1
+m1=glm(interest1 ~ SRvFBbin, family=binomial(link='logit'),data=SleepPHQ1);summary(m1)
+m2=glm(down1 ~ SRvFBbin, family=binomial(link='logit'),data=SleepPHQ1);summary(m2)
+m3=glm(asleep1 ~ SRvFBbin, family=binomial(link='logit'),data=SleepPHQ1);summary(m3)
+m4=glm(tired1 ~ SRvFBbin, family=binomial(link='logit'),data=SleepPHQ1);summary(m4)
+m5=glm(appetite1 ~ SRvFBbin, family=binomial(link='logit'),data=SleepPHQ1);summary(m5)
+m6=glm(failure1 ~ SRvFBbin, family=binomial(link='logit'),data=SleepPHQ1);summary(m6)
+m7=glm(concentr1 ~ SRvFBbin, family=binomial(link='logit'),data=SleepPHQ1);summary(m7)
+m8=glm(activity1 ~ SRvFBbin, family=binomial(link='logit'),data=SleepPHQ1);summary(m8)
+m9=glm(suic1 ~ SRvFBbin, family=binomial(link='logit'),data=SleepPHQ1);summary(m9)
+# t-test on PHQ tot
+pt1=SleepPHQ1$PHQtot1[which(SleepPHQ1$SRvFB>1)];pt2=SleepPHQ1$PHQtot1[which(SleepPHQ1$SRvFB<1)]
+t.test(pt1,pt2,paired = F)
+# plot 
+plot(SleepPHQ1$TotalHrAsleep,SleepPHQ1$sleep24h1,xlab="fitbit sleep(hr)",ylab="self report sleep(hr)")
+abline(0,1)
+# Average sleep on the week before PHQ date 1
+Sleepave=merge(Sleep,PHQSleep,by.x="Id",by.y="UserID")
+Sleepave1=Sleepave[which((Sleepave$surveyDate1 - Sleepave$SleepDay >=0) & (Sleepave$surveyDate1-Sleepave$SleepDay<7)),]
+Sleepave2=Sleepave[which((Sleepave$surveyDate2 - Sleepave$SleepDay >=0) & (Sleepave$surveyDate2-Sleepave$SleepDay<7)),]
+subs=unique(Sleepave1$Id)
+nsub=length(subs)
+for (isub in 1:nsub){
+  tmp=Sleepave1[which(Sleepave1$Id==subs[isub]),]
+  newtmp=data.frame(id=subs[isub],sleepsr=tmp$sleepAve1[1],
+                    sleepfb=mean(tmp$TotalMinutesAsleep/60),sleepsrvfb=tmp$sleepAve1[1]/mean(tmp$TotalMinutesAsleep/60),
+                    PHQtot1=tmp$PHQtot1[1],interest1=tmp$interest1[1],down1=tmp$down1[1],asleep1=tmp$asleep1[1],tired1=tmp$tired1[1],
+                    appetite1=tmp$appetite1[1],failure1=tmp$failure1[1],concentr1=tmp$concentr1[1],activity1=tmp$activity1[1],suic1=tmp$suic1[1])
+  if (isub==1){out=newtmp}
+  else {out=rbind(out,newtmp)}
+}
+Sleepave1=out
+
+subs=unique(Sleepave2$Id)
+nsub=length(subs)
+for (isub in 1:nsub){
+  tmp=Sleepave2[which(Sleepave2$Id==subs[isub]),]
+  newtmp=data.frame(id=subs[isub],sleepsr=tmp$sleepAve2[1],
+                    sleepfb=mean(tmp$TotalMinutesAsleep/60),sleepsrvfb=tmp$sleepAve2[1]/mean(tmp$TotalMinutesAsleep/60),
+                    PHQtot2=tmp$PHQtot2[1],interest2=tmp$interest2[1],down2=tmp$down2[1],asleep2=tmp$asleep2[1],tired2=tmp$tired2[1],
+                    appetite2=tmp$appetite2[1],failure2=tmp$failure2[1],concentr2=tmp$concentr2[1],activity2=tmp$activity2[1],suic2=tmp$suic2[1])
+  if (isub==1){out2=newtmp}
+  else {out2=rbind(out2,newtmp)}
+}
+Sleepave2=out2
+
+Sleepave1$SRvFBbin=Sleepave1$sleepsrvfb>1
+# way one: factorize the scores (0,1,2,3)
+Sleepave1[SPfactorcols]<-lapply(Sleepave1[SPfactorcols],as.factor)
+# way two: binarize the scores (0,1)
+Sleepave1[SPfactorcols]=ifelse(Sleepave1[SPfactorcols]>0,1,0)
+m1=glm(interest1 ~ SRvFBbin, family=binomial(link='logit'),data=Sleepave1);summary(m1)
+m2=glm(down1 ~ SRvFBbin, family=binomial(link='logit'),data=Sleepave1);summary(m2); # sig
+m3=glm(asleep1 ~ SRvFBbin, family=binomial(link='logit'),data=Sleepave1);summary(m3)
+m4=glm(tired1 ~ SRvFBbin, family=binomial(link='logit'),data=Sleepave1);summary(m4)
+m5=glm(appetite1 ~ SRvFBbin, family=binomial(link='logit'),data=Sleepave1);summary(m5)
+m6=glm(failure1 ~ SRvFBbin, family=binomial(link='logit'),data=Sleepave1);summary(m6)
+m7=glm(concentr1 ~ SRvFBbin, family=binomial(link='logit'),data=Sleepave1);summary(m7)
+m8=glm(activity1 ~ SRvFBbin, family=binomial(link='logit'),data=Sleepave1);summary(m8)
+m9=glm(suic1 ~ SRvFBbin, family=binomial(link='logit'),data=Sleepave1);summary(m9)  
+
+m1=glm(interest1 ~ sleepsrvfb, family=binomial(link='logit'),data=Sleepave1);summary(m1)
+m2=glm(down1 ~ sleepsrvfb, family=binomial(link='logit'),data=Sleepave1);summary(m2); # sig
+m3=glm(asleep1 ~ sleepsrvfb, family=binomial(link='logit'),data=Sleepave1);summary(m3)
+m4=glm(tired1 ~ sleepsrvfb, family=binomial(link='logit'),data=Sleepave1);summary(m4)
+m5=glm(appetite1 ~ sleepsrvfb, family=binomial(link='logit'),data=Sleepave1);summary(m5)
+m6=glm(failure1 ~ sleepsrvfb, family=binomial(link='logit'),data=Sleepave1);summary(m6)
+m7=glm(concentr1 ~ sleepsrvfb, family=binomial(link='logit'),data=Sleepave1);summary(m7)
+m8=glm(activity1 ~ sleepsrvfb, family=binomial(link='logit'),data=Sleepave1);summary(m8)
+m9=glm(suic1 ~ sleepsrvfb, family=binomial(link='logit'),data=Sleepave1);summary(m9)  
+
+# t-test on PHQ tot
+pt1=Sleepave1$PHQtot1[which(Sleepave1$sleepsrvfb>1)];pt2=Sleepave1$PHQtot1[which(Sleepave1$sleepsrvfb<1)]
+t.test(pt1,pt2,paired = F)
+# plot
+plot(Sleepave1$sleepfb,Sleepave1$sleepsr,xlab="fitbit sleep average (hr)",ylab="self report sleep average (hr)")
+abline(0,1)
+# Sleep on PHQ date 2
+SleepPHQ2=merge(PHQSleep,Sleep,by.x=c("UserID","surveyDate2"),by.y=c("Id","SleepDay"))
+# Average Sleep on the week before PHQ date 2
