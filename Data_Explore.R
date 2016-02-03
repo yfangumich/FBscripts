@@ -1,6 +1,8 @@
 #### Initialization ####
 library("Hmisc")
 library("ggplot2")
+library("foreign")
+library("MASS")
 library("reshape2")
 library("lme4")
 library("lmerTest")
@@ -14,6 +16,9 @@ library("sjPlot") # table functions
 library("sjmisc")
 library("texreg")
 library("gtools")
+# multinomial logistic regression
+library("nnet") 
+library("mlogit")
 ####################################### Functions #######################################
 ## Sleep
 SleepSummary=function(dayfile,subj,allcols,InternStart){
@@ -826,15 +831,28 @@ SleepPHQ1[SPfactorcols]=ifelse(SleepPHQ1[SPfactorcols]>0,1,0)
 SleepPHQ1$TotalHrAsleep=SleepPHQ1$TotalMinutesAsleep/60
 SleepPHQ1$SRvFB=SleepPHQ1$sleep24h1/SleepPHQ1$TotalHrAsleep
 SleepPHQ1$SRvFBbin=SleepPHQ1$SRvFB>1
-m1=glm(interest1 ~ SRvFBbin, family=binomial(link='logit'),data=SleepPHQ1);summary(m1)
-m2=glm(down1 ~ SRvFBbin, family=binomial(link='logit'),data=SleepPHQ1);summary(m2)
-m3=glm(asleep1 ~ SRvFBbin, family=binomial(link='logit'),data=SleepPHQ1);summary(m3)
-m4=glm(tired1 ~ SRvFBbin, family=binomial(link='logit'),data=SleepPHQ1);summary(m4)
-m5=glm(appetite1 ~ SRvFBbin, family=binomial(link='logit'),data=SleepPHQ1);summary(m5)
-m6=glm(failure1 ~ SRvFBbin, family=binomial(link='logit'),data=SleepPHQ1);summary(m6)
-m7=glm(concentr1 ~ SRvFBbin, family=binomial(link='logit'),data=SleepPHQ1);summary(m7)
-m8=glm(activity1 ~ SRvFBbin, family=binomial(link='logit'),data=SleepPHQ1);summary(m8)
-m9=glm(suic1 ~ SRvFBbin, family=binomial(link='logit'),data=SleepPHQ1);summary(m9)
+m1=glm(interest1 ~ SRvFB, family=binomial(link='logit'),data=SleepPHQ1);summary(m1)
+m2=glm(down1 ~ SRvFB, family=binomial(link='logit'),data=SleepPHQ1);summary(m2)
+m3=glm(asleep1 ~ SRvFB, family=binomial(link='logit'),data=SleepPHQ1);summary(m3)
+m4=glm(tired1 ~ SRvFB, family=binomial(link='logit'),data=SleepPHQ1);summary(m4)
+m5=glm(appetite1 ~ SRvFB, family=binomial(link='logit'),data=SleepPHQ1);summary(m5)
+m6=glm(failure1 ~ SRvFB, family=binomial(link='logit'),data=SleepPHQ1);summary(m6)
+m7=glm(concentr1 ~ SRvFB, family=binomial(link='logit'),data=SleepPHQ1);summary(m7)
+m8=glm(activity1 ~ SRvFB, family=binomial(link='logit'),data=SleepPHQ1);summary(m8)
+m9=glm(suic1 ~ SRvFB, family=binomial(link='logit'),data=SleepPHQ1);summary(m9)
+
+lapply(SleepPHQ1[,c("down1","SRvFB")],table)
+ftable(xtabs(~ down1 + SRvFB,data=SleepPHQ1))
+m1<-polr(interest1 ~ SRvFB, data=SleepPHQ1, Hess=TRUE);ctable=coef(summary(m1));p=pnorm(abs(ctable[,"t value"]),lower.tail=FALSE)*2;ci=confint(m1);print(p);print(ci)
+m2<-polr(down1 ~ SRvFB, data=SleepPHQ1, Hess=TRUE);ctable=coef(summary(m2));p=pnorm(abs(ctable[,"t value"]),lower.tail=FALSE)*2;ci=confint(m2);print(p);print(ci)
+m3<-polr(asleep1 ~ SRvFB, data=SleepPHQ1, Hess=TRUE);ctable=coef(summary(m3));p=pnorm(abs(ctable[,"t value"]),lower.tail=FALSE)*2;ci=confint(m3);print(p);print(ci)
+m4<-polr(tired1 ~ SRvFB, data=SleepPHQ1, Hess=TRUE);ctable=coef(summary(m4));p=pnorm(abs(ctable[,"t value"]),lower.tail=FALSE)*2;ci=confint(m4);print(p);print(ci)
+m5<-polr(appetite1 ~ SRvFB, data=SleepPHQ1, Hess=TRUE);ctable=coef(summary(m5));p=pnorm(abs(ctable[,"t value"]),lower.tail=FALSE)*2;ci=confint(m5);print(p);print(ci)
+m6<-polr(failure1 ~ SRvFB, data=SleepPHQ1, Hess=TRUE);ctable=coef(summary(m6));p=pnorm(abs(ctable[,"t value"]),lower.tail=FALSE)*2;ci=confint(m6);print(p);print(ci) # sig when SRvFB continuous
+m7<-polr(concentr1 ~ SRvFB, data=SleepPHQ1, Hess=TRUE);ctable=coef(summary(m7));p=pnorm(abs(ctable[,"t value"]),lower.tail=FALSE)*2;ci=confint(m7);print(p);print(ci)
+m8<-polr(activity1 ~ SRvFB, data=SleepPHQ1, Hess=TRUE);ctable=coef(summary(m8));p=pnorm(abs(ctable[,"t value"]),lower.tail=FALSE)*2;ci=confint(m8);print(p);print(ci)
+m9<-polr(suic1 ~ SRvFB, data=SleepPHQ1, Hess=TRUE);ctable=coef(summary(m9));p=pnorm(abs(ctable[,"t value"]),lower.tail=FALSE)*2;ci=confint(m9);print(p);print(ci)
+
 # t-test on PHQ tot
 pt1=SleepPHQ1$PHQtot1[which(SleepPHQ1$SRvFB>1)];pt2=SleepPHQ1$PHQtot1[which(SleepPHQ1$SRvFB<1)]
 t.test(pt1,pt2,paired = F)
@@ -895,6 +913,27 @@ m6=glm(failure1 ~ sleepsrvfb, family=binomial(link='logit'),data=Sleepave1);summ
 m7=glm(concentr1 ~ sleepsrvfb, family=binomial(link='logit'),data=Sleepave1);summary(m7)
 m8=glm(activity1 ~ sleepsrvfb, family=binomial(link='logit'),data=Sleepave1);summary(m8)
 m9=glm(suic1 ~ sleepsrvfb, family=binomial(link='logit'),data=Sleepave1);summary(m9)  
+
+m1<-polr(interest1 ~ SRvFBbin, data=Sleepave1, Hess=TRUE);ctable=coef(summary(m1));p=pnorm(abs(ctable[,"t value"]),lower.tail=FALSE)*2;ci=confint(m1);print(p);print(ci)
+m2<-polr(down1 ~ SRvFBbin, data=Sleepave1, Hess=TRUE);ctable=coef(summary(m2));p=pnorm(abs(ctable[,"t value"]),lower.tail=FALSE)*2;ci=confint(m2);print(p);print(ci)
+m3<-polr(asleep1 ~ SRvFBbin, data=Sleepave1, Hess=TRUE);ctable=coef(summary(m3));p=pnorm(abs(ctable[,"t value"]),lower.tail=FALSE)*2;ci=confint(m3);print(p);print(ci)
+m4<-polr(tired1 ~ SRvFBbin, data=Sleepave1, Hess=TRUE);ctable=coef(summary(m4));p=pnorm(abs(ctable[,"t value"]),lower.tail=FALSE)*2;ci=confint(m4);print(p);print(ci)
+m5<-polr(appetite1 ~ SRvFBbin, data=Sleepave1, Hess=TRUE);ctable=coef(summary(m5));p=pnorm(abs(ctable[,"t value"]),lower.tail=FALSE)*2;ci=confint(m5);print(p);print(ci)
+m6<-polr(failure1 ~ SRvFBbin, data=Sleepave1, Hess=TRUE);ctable=coef(summary(m6));p=pnorm(abs(ctable[,"t value"]),lower.tail=FALSE)*2;ci=confint(m6);print(p);print(ci) 
+m7<-polr(concentr1 ~ SRvFBbin, data=Sleepave1, Hess=TRUE);ctable=coef(summary(m7));p=pnorm(abs(ctable[,"t value"]),lower.tail=FALSE)*2;ci=confint(m7);print(p);print(ci)
+m8<-polr(activity1 ~ SRvFBbin, data=Sleepave1, Hess=TRUE);ctable=coef(summary(m8));p=pnorm(abs(ctable[,"t value"]),lower.tail=FALSE)*2;ci=confint(m8);print(p);print(ci)
+m9<-polr(suic1 ~ SRvFBbin, data=Sleepave1, Hess=TRUE);ctable=coef(summary(m9));p=pnorm(abs(ctable[,"t value"]),lower.tail=FALSE)*2;ci=confint(m9);print(p);print(ci)
+
+m1<-polr(interest1 ~ sleepsrvfb, data=Sleepave1, Hess=TRUE);ctable=coef(summary(m1));p=pnorm(abs(ctable[,"t value"]),lower.tail=FALSE)*2;ci=confint(m1);print(p);print(ci)
+m2<-polr(down1 ~ sleepsrvfb, data=Sleepave1, Hess=TRUE);ctable=coef(summary(m2));p=pnorm(abs(ctable[,"t value"]),lower.tail=FALSE)*2;ci=confint(m2);print(p);print(ci)
+m3<-polr(asleep1 ~ sleepsrvfb, data=Sleepave1, Hess=TRUE);ctable=coef(summary(m3));p=pnorm(abs(ctable[,"t value"]),lower.tail=FALSE)*2;ci=confint(m3);print(p);print(ci)
+m4<-polr(tired1 ~ sleepsrvfb, data=Sleepave1, Hess=TRUE);ctable=coef(summary(m4));p=pnorm(abs(ctable[,"t value"]),lower.tail=FALSE)*2;ci=confint(m4);print(p);print(ci)
+m5<-polr(appetite1 ~ sleepsrvfb, data=Sleepave1, Hess=TRUE);ctable=coef(summary(m5));p=pnorm(abs(ctable[,"t value"]),lower.tail=FALSE)*2;ci=confint(m5);print(p);print(ci)
+m6<-polr(failure1 ~ sleepsrvfb, data=Sleepave1, Hess=TRUE);ctable=coef(summary(m6));p=pnorm(abs(ctable[,"t value"]),lower.tail=FALSE)*2;ci=confint(m6);print(p);print(ci) 
+m7<-polr(concentr1 ~ sleepsrvfb, data=Sleepave1, Hess=TRUE);ctable=coef(summary(m7));p=pnorm(abs(ctable[,"t value"]),lower.tail=FALSE)*2;ci=confint(m7);print(p);print(ci)
+m8<-polr(activity1 ~ sleepsrvfb, data=Sleepave1, Hess=TRUE);ctable=coef(summary(m8));p=pnorm(abs(ctable[,"t value"]),lower.tail=FALSE)*2;ci=confint(m8);print(p);print(ci)
+m9<-polr(suic1 ~ sleepsrvfb, data=Sleepave1, Hess=TRUE);ctable=coef(summary(m9));p=pnorm(abs(ctable[,"t value"]),lower.tail=FALSE)*2;ci=confint(m9);print(p);print(ci)
+
 
 # t-test on PHQ tot
 pt1=Sleepave1$PHQtot1[which(Sleepave1$sleepsrvfb>1)];pt2=Sleepave1$PHQtot1[which(Sleepave1$sleepsrvfb<1)]
