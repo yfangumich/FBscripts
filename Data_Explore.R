@@ -123,6 +123,8 @@ MoodSummary=function(dayfile,subj,allcols,InternStart){
   subvalid=sub[which(!is.na(sub$mood)),]
   start=sort(subvalid$Date_mood)[1]; end=sort(subvalid$Date_mood)[nrow(subvalid)]
   total=nrow(sub);valid=nrow(subvalid)
+  
+  meanmood.both=mean(subvalid$mood)
     
   subvalid.pre=subvalid[which(subvalid$Date_mood < InternStart),]
   meanmood.pre=mean(subvalid.pre$mood);
@@ -132,9 +134,11 @@ MoodSummary=function(dayfile,subj,allcols,InternStart){
   meanmood.post=mean(subvalid.post$mood);
   sdmood.post=sd(subvalid.post$mood);
   
-  out=data.frame(subj,start,end,total,valid,
+  dmood.model=lm(mood ~ Date_mood, data=subvalid);dmood.slope=coef(dmood.model)[2]
+  
+  out=data.frame(subj,start,end,total,valid,meanmood.both,
                  meanmood.pre,sdmood.pre,
-                 meanmood.post,sdmood.post)
+                 meanmood.post,sdmood.post,dmood.slope)
   colnames(out)=allcols
   return(out)
 }
@@ -422,9 +426,11 @@ Mood=rbind(Mood2014,Mood2015)
 Mood=Mood[which(!is.na(Mood$mood)),]
 #### Mood Summary ####
 mood.charcols=c("id");mood.datecols=c("start","end")
-mood.numcols=c("total","valid","meanMood.pre","sdMood.pre","meanMood.post","sdMood.post")
+mood.numcols=c("total","valid","meanMood","meanMood.pre","sdMood.pre","meanMood.post","sdMood.post","dmood.slope")
 mood.allcols=c(mood.charcols,mood.datecols,mood.numcols)
 mood.SubjIDs=unique(Mood$userid)
+Mood.totaldays2014=as.numeric(max(Mood$Date_mood[which(Mood$Date_mood<"2015-01-01")])+1-min(Mood$Date_mood[which(Mood$Date_mood<"2015-01-01")])+1)
+Mood.totaldays2015=as.numeric(max(Mood$Date_mood[which(Mood$Date_mood>="2015-01-01")])-min(Mood$Date_mood[which(Mood$Date_mood>="2015-01-01")])+1)
 for (i in 1:length(mood.SubjIDs)){
   startdate=as.Date(StartDates$StartDate[StartDates$USERID %in% mood.SubjIDs[i]],"%m/%d/%Y")
   t=MoodSummary(Mood,mood.SubjIDs[i],mood.allcols,startdate)
@@ -434,6 +440,17 @@ for (i in 1:length(mood.SubjIDs)){
   else{Summary.mood=rbind(Summary.mood,t)}
 }
 Summary.mood=Summary.mood[which(!is.na(Summary.mood$meanMood.pre)),]
+Summary.mood$RR<-NA
+Summary.mood$RR[which(Summary.mood$end<"2015-01-01")]<-Summary.mood$valid[which(Summary.mood$end<"2015-01-01")] / Mood.totaldays2014;
+Summary.mood$RR[which(Summary.mood$end>="2015-01-01")]<-Summary.mood$valid[which(Summary.mood$end>="2015-01-01")] / Mood.totaldays2015;
+Summary.mood$dmeanmood <- Summary.mood$meanMood.post-Summary.mood$meanMood.pre
+
+m1<-lm(meanMood ~ RR, data=Summary.mood);summary(m1)
+m2<-lm(meanMood.pre ~ RR, data=Summary.mood);summary(m2)
+m3<-lm(meanMood.post ~ RR, data=Summary.mood);summary(m3)
+m4<-lm(dmeanmood ~ RR, data=Summary.mood);summary(m4)
+m5<-lm(dmood.slope ~ RR, data=Summary.mood);summary(m5)
+
 mood.model.paired=t.test(Summary.mood$meanMood.pre,Summary.mood$meanMood.post,paired=T)
 Summary.mood.2014=Summary.mood[which(Summary.mood$end < as.Date("2015-01-01")),]
 mood.model.paired.2014=t.test(Summary.mood.2014$meanMood.pre,Summary.mood.2014$meanMood.post,paired=T)
@@ -751,6 +768,10 @@ anova(MASI.ba.mood.null,MASI.ba.mood)
 anova(MASI.ba.act.null,MASI.ba.act)
 anova(MASI.ba.sleep.null,MASI.ba.sleep)
 
+#### Mood report frequency ####
+
+
+
 ####################################### PHQ #######################################
 PHQ=read.csv("Z:././././Data Analysis/Yu Fang/data/data14all_15BLq1q2_PHQ_Sleep_01292016.csv")
 
@@ -818,7 +839,7 @@ PHQ.fitbit.3.long=
 PHQSleep<-PHQ[which(PHQ$UserID %in% Sleep$Id),]
 PHQSleep$surveyDate1<-as.Date(as.character(PHQSleep$surveyDate1),"%d%b%y")
 PHQSleep$surveyDate2<-as.Date(as.character(PHQSleep$surveyDate2),"%d%b%y")
-# sleep on PHQ date 1
+#### sleep on PHQ date 1 ####
 SleepPHQ1=merge(PHQSleep,Sleep,by.x=c("UserID","surveyDate1"),by.y=c("Id","SleepDay"))
 SleepPHQ1=SleepPHQ1[c("UserID","surveyDate1","Year","sleep24h1","sleepAve1","interest1","down1","asleep1","tired1","appetite1","failure1","concentr1","activity1","suic1","PHQtot1",
                       "TotalSleepRecords","TotalMinutesAsleep","TotalTimeInBed")]
@@ -831,27 +852,31 @@ SleepPHQ1[SPfactorcols]=ifelse(SleepPHQ1[SPfactorcols]>0,1,0)
 SleepPHQ1$TotalHrAsleep=SleepPHQ1$TotalMinutesAsleep/60
 SleepPHQ1$SRvFB=SleepPHQ1$sleep24h1/SleepPHQ1$TotalHrAsleep
 SleepPHQ1$SRvFBbin=SleepPHQ1$SRvFB>1
-m1=glm(interest1 ~ SRvFB, family=binomial(link='logit'),data=SleepPHQ1);summary(m1)
-m2=glm(down1 ~ SRvFB, family=binomial(link='logit'),data=SleepPHQ1);summary(m2)
-m3=glm(asleep1 ~ SRvFB, family=binomial(link='logit'),data=SleepPHQ1);summary(m3)
-m4=glm(tired1 ~ SRvFB, family=binomial(link='logit'),data=SleepPHQ1);summary(m4)
-m5=glm(appetite1 ~ SRvFB, family=binomial(link='logit'),data=SleepPHQ1);summary(m5)
-m6=glm(failure1 ~ SRvFB, family=binomial(link='logit'),data=SleepPHQ1);summary(m6)
-m7=glm(concentr1 ~ SRvFB, family=binomial(link='logit'),data=SleepPHQ1);summary(m7)
-m8=glm(activity1 ~ SRvFB, family=binomial(link='logit'),data=SleepPHQ1);summary(m8)
-m9=glm(suic1 ~ SRvFB, family=binomial(link='logit'),data=SleepPHQ1);summary(m9)
+SleepPHQ1$AvI=SleepPHQ1$TotalMinutesAsleep/SleepPHQ1$TotalTimeInBed
+
+# predict variables: SRvFB, SRvFBbin, TotalHrAsleep, AVI
+m1=glm(interest1 ~ AvI, family=binomial(link='logit'),data=SleepPHQ1);summary(m1)
+m2=glm(down1 ~ AvI, family=binomial(link='logit'),data=SleepPHQ1);summary(m2)
+m3=glm(asleep1 ~ AvI, family=binomial(link='logit'),data=SleepPHQ1);summary(m3)
+m4=glm(tired1 ~ AvI, family=binomial(link='logit'),data=SleepPHQ1);summary(m4)
+m5=glm(appetite1 ~ AvI, family=binomial(link='logit'),data=SleepPHQ1);summary(m5)
+m6=glm(failure1 ~ AvI, family=binomial(link='logit'),data=SleepPHQ1);summary(m6)
+m7=glm(concentr1 ~ AvI, family=binomial(link='logit'),data=SleepPHQ1);summary(m7)
+m8=glm(activity1 ~ AvI, family=binomial(link='logit'),data=SleepPHQ1);summary(m8)
+m9=glm(suic1 ~ AvI, family=binomial(link='logit'),data=SleepPHQ1);summary(m9)
+m10=lm(PHQtot1 ~ AvI, data=SleepPHQ1);summary(m10)
 
 lapply(SleepPHQ1[,c("down1","SRvFB")],table)
 ftable(xtabs(~ down1 + SRvFB,data=SleepPHQ1))
-m1<-polr(interest1 ~ SRvFB, data=SleepPHQ1, Hess=TRUE);ctable=coef(summary(m1));p=pnorm(abs(ctable[,"t value"]),lower.tail=FALSE)*2;ci=confint(m1);print(p);print(ci)
-m2<-polr(down1 ~ SRvFB, data=SleepPHQ1, Hess=TRUE);ctable=coef(summary(m2));p=pnorm(abs(ctable[,"t value"]),lower.tail=FALSE)*2;ci=confint(m2);print(p);print(ci)
-m3<-polr(asleep1 ~ SRvFB, data=SleepPHQ1, Hess=TRUE);ctable=coef(summary(m3));p=pnorm(abs(ctable[,"t value"]),lower.tail=FALSE)*2;ci=confint(m3);print(p);print(ci)
-m4<-polr(tired1 ~ SRvFB, data=SleepPHQ1, Hess=TRUE);ctable=coef(summary(m4));p=pnorm(abs(ctable[,"t value"]),lower.tail=FALSE)*2;ci=confint(m4);print(p);print(ci)
-m5<-polr(appetite1 ~ SRvFB, data=SleepPHQ1, Hess=TRUE);ctable=coef(summary(m5));p=pnorm(abs(ctable[,"t value"]),lower.tail=FALSE)*2;ci=confint(m5);print(p);print(ci)
-m6<-polr(failure1 ~ SRvFB, data=SleepPHQ1, Hess=TRUE);ctable=coef(summary(m6));p=pnorm(abs(ctable[,"t value"]),lower.tail=FALSE)*2;ci=confint(m6);print(p);print(ci) # sig when SRvFB continuous
-m7<-polr(concentr1 ~ SRvFB, data=SleepPHQ1, Hess=TRUE);ctable=coef(summary(m7));p=pnorm(abs(ctable[,"t value"]),lower.tail=FALSE)*2;ci=confint(m7);print(p);print(ci)
-m8<-polr(activity1 ~ SRvFB, data=SleepPHQ1, Hess=TRUE);ctable=coef(summary(m8));p=pnorm(abs(ctable[,"t value"]),lower.tail=FALSE)*2;ci=confint(m8);print(p);print(ci)
-m9<-polr(suic1 ~ SRvFB, data=SleepPHQ1, Hess=TRUE);ctable=coef(summary(m9));p=pnorm(abs(ctable[,"t value"]),lower.tail=FALSE)*2;ci=confint(m9);print(p);print(ci)
+m1<-polr(interest1 ~ AvI, data=SleepPHQ1, Hess=TRUE);ctable=coef(summary(m1));p=pnorm(abs(ctable[,"t value"]),lower.tail=FALSE)*2;ci=confint(m1);print(p);print(ci)
+m2<-polr(down1 ~ AvI, data=SleepPHQ1, Hess=TRUE);ctable=coef(summary(m2));p=pnorm(abs(ctable[,"t value"]),lower.tail=FALSE)*2;ci=confint(m2);print(p);print(ci)
+m3<-polr(asleep1 ~ AvI, data=SleepPHQ1, Hess=TRUE);ctable=coef(summary(m3));p=pnorm(abs(ctable[,"t value"]),lower.tail=FALSE)*2;ci=confint(m3);print(p);print(ci)
+m4<-polr(tired1 ~ AvI, data=SleepPHQ1, Hess=TRUE);ctable=coef(summary(m4));p=pnorm(abs(ctable[,"t value"]),lower.tail=FALSE)*2;ci=confint(m4);print(p);print(ci)
+m5<-polr(appetite1 ~ AvI, data=SleepPHQ1, Hess=TRUE);ctable=coef(summary(m5));p=pnorm(abs(ctable[,"t value"]),lower.tail=FALSE)*2;ci=confint(m5);print(p);print(ci)
+m6<-polr(failure1 ~ AvI, data=SleepPHQ1, Hess=TRUE);ctable=coef(summary(m6));p=pnorm(abs(ctable[,"t value"]),lower.tail=FALSE)*2;ci=confint(m6);print(p);print(ci) 
+m7<-polr(concentr1 ~ AvI, data=SleepPHQ1, Hess=TRUE);ctable=coef(summary(m7));p=pnorm(abs(ctable[,"t value"]),lower.tail=FALSE)*2;ci=confint(m7);print(p);print(ci)
+m8<-polr(activity1 ~ AvI, data=SleepPHQ1, Hess=TRUE);ctable=coef(summary(m8));p=pnorm(abs(ctable[,"t value"]),lower.tail=FALSE)*2;ci=confint(m8);print(p);print(ci)
+m9<-polr(suic1 ~ AvI, data=SleepPHQ1, Hess=TRUE);ctable=coef(summary(m9));p=pnorm(abs(ctable[,"t value"]),lower.tail=FALSE)*2;ci=confint(m9);print(p);print(ci)
 
 # t-test on PHQ tot
 pt1=SleepPHQ1$PHQtot1[which(SleepPHQ1$SRvFB>1)];pt2=SleepPHQ1$PHQtot1[which(SleepPHQ1$SRvFB<1)]
@@ -859,7 +884,15 @@ t.test(pt1,pt2,paired = F)
 # plot 
 plot(SleepPHQ1$TotalHrAsleep,SleepPHQ1$sleep24h1,xlab="fitbit sleep(hr)",ylab="self report sleep(hr)")
 abline(0,1)
-# Average sleep on the week before PHQ date 1
+# assumption test
+sf <- function(y){
+  c('Y>=0' = qlogis(mean(y==0)),
+    'Y>=1' = qlogis(mean(y==1)),
+    'Y>=2' = qlogis(mean(y==2)))
+}
+s<-with(SleepPHQ1,summary(as.numeric(as.character(failure1)) ~ SRvFBbin, fun=sf))
+print(s)
+#### Average sleep on the week before PHQ date 1 ####
 Sleepave=merge(Sleep,PHQSleep,by.x="Id",by.y="UserID")
 Sleepave1=Sleepave[which((Sleepave$surveyDate1 - Sleepave$SleepDay >=0) & (Sleepave$surveyDate1-Sleepave$SleepDay<7)),]
 Sleepave2=Sleepave[which((Sleepave$surveyDate2 - Sleepave$SleepDay >=0) & (Sleepave$surveyDate2-Sleepave$SleepDay<7)),]
@@ -869,6 +902,7 @@ for (isub in 1:nsub){
   tmp=Sleepave1[which(Sleepave1$Id==subs[isub]),]
   newtmp=data.frame(id=subs[isub],sleepsr=tmp$sleepAve1[1],
                     sleepfb=mean(tmp$TotalMinutesAsleep/60),sleepsrvfb=tmp$sleepAve1[1]/mean(tmp$TotalMinutesAsleep/60),
+                    AvI=mean(tmp$TotalMinutesAsleep/tmp$TotalTimeInBed),
                     PHQtot1=tmp$PHQtot1[1],interest1=tmp$interest1[1],down1=tmp$down1[1],asleep1=tmp$asleep1[1],tired1=tmp$tired1[1],
                     appetite1=tmp$appetite1[1],failure1=tmp$failure1[1],concentr1=tmp$concentr1[1],activity1=tmp$activity1[1],suic1=tmp$suic1[1])
   if (isub==1){out=newtmp}
@@ -894,46 +928,28 @@ Sleepave1$SRvFBbin=Sleepave1$sleepsrvfb>1
 Sleepave1[SPfactorcols]<-lapply(Sleepave1[SPfactorcols],as.factor)
 # way two: binarize the scores (0,1)
 Sleepave1[SPfactorcols]=ifelse(Sleepave1[SPfactorcols]>0,1,0)
-m1=glm(interest1 ~ SRvFBbin, family=binomial(link='logit'),data=Sleepave1);summary(m1)
-m2=glm(down1 ~ SRvFBbin, family=binomial(link='logit'),data=Sleepave1);summary(m2); # sig
-m3=glm(asleep1 ~ SRvFBbin, family=binomial(link='logit'),data=Sleepave1);summary(m3)
-m4=glm(tired1 ~ SRvFBbin, family=binomial(link='logit'),data=Sleepave1);summary(m4)
-m5=glm(appetite1 ~ SRvFBbin, family=binomial(link='logit'),data=Sleepave1);summary(m5)
-m6=glm(failure1 ~ SRvFBbin, family=binomial(link='logit'),data=Sleepave1);summary(m6)
-m7=glm(concentr1 ~ SRvFBbin, family=binomial(link='logit'),data=Sleepave1);summary(m7)
-m8=glm(activity1 ~ SRvFBbin, family=binomial(link='logit'),data=Sleepave1);summary(m8)
-m9=glm(suic1 ~ SRvFBbin, family=binomial(link='logit'),data=Sleepave1);summary(m9)  
 
-m1=glm(interest1 ~ sleepsrvfb, family=binomial(link='logit'),data=Sleepave1);summary(m1)
-m2=glm(down1 ~ sleepsrvfb, family=binomial(link='logit'),data=Sleepave1);summary(m2); # sig
-m3=glm(asleep1 ~ sleepsrvfb, family=binomial(link='logit'),data=Sleepave1);summary(m3)
-m4=glm(tired1 ~ sleepsrvfb, family=binomial(link='logit'),data=Sleepave1);summary(m4)
-m5=glm(appetite1 ~ sleepsrvfb, family=binomial(link='logit'),data=Sleepave1);summary(m5)
-m6=glm(failure1 ~ sleepsrvfb, family=binomial(link='logit'),data=Sleepave1);summary(m6)
-m7=glm(concentr1 ~ sleepsrvfb, family=binomial(link='logit'),data=Sleepave1);summary(m7)
-m8=glm(activity1 ~ sleepsrvfb, family=binomial(link='logit'),data=Sleepave1);summary(m8)
-m9=glm(suic1 ~ sleepsrvfb, family=binomial(link='logit'),data=Sleepave1);summary(m9)  
+# predict variables: sleepsrvfb, SRvFBbin, sleepfb, AvI
+m1=glm(interest1 ~ AvI, family=binomial(link='logit'),data=Sleepave1);summary(m1)
+m2=glm(down1 ~ AvI, family=binomial(link='logit'),data=Sleepave1);summary(m2);
+m3=glm(asleep1 ~ AvI, family=binomial(link='logit'),data=Sleepave1);summary(m3)
+m4=glm(tired1 ~ AvI, family=binomial(link='logit'),data=Sleepave1);summary(m4)
+m5=glm(appetite1 ~ AvI, family=binomial(link='logit'),data=Sleepave1);summary(m5)
+m6=glm(failure1 ~ AvI, family=binomial(link='logit'),data=Sleepave1);summary(m6)
+m7=glm(concentr1 ~ AvI, family=binomial(link='logit'),data=Sleepave1);summary(m7)
+m8=glm(activity1 ~ AvI, family=binomial(link='logit'),data=Sleepave1);summary(m8)
+m9=glm(suic1 ~ AvI, family=binomial(link='logit'),data=Sleepave1);summary(m9)  
+m10=lm(PHQtot1 ~ AvI, data=Sleepave1);summary(m10)
 
-m1<-polr(interest1 ~ SRvFBbin, data=Sleepave1, Hess=TRUE);ctable=coef(summary(m1));p=pnorm(abs(ctable[,"t value"]),lower.tail=FALSE)*2;ci=confint(m1);print(p);print(ci)
-m2<-polr(down1 ~ SRvFBbin, data=Sleepave1, Hess=TRUE);ctable=coef(summary(m2));p=pnorm(abs(ctable[,"t value"]),lower.tail=FALSE)*2;ci=confint(m2);print(p);print(ci)
-m3<-polr(asleep1 ~ SRvFBbin, data=Sleepave1, Hess=TRUE);ctable=coef(summary(m3));p=pnorm(abs(ctable[,"t value"]),lower.tail=FALSE)*2;ci=confint(m3);print(p);print(ci)
-m4<-polr(tired1 ~ SRvFBbin, data=Sleepave1, Hess=TRUE);ctable=coef(summary(m4));p=pnorm(abs(ctable[,"t value"]),lower.tail=FALSE)*2;ci=confint(m4);print(p);print(ci)
-m5<-polr(appetite1 ~ SRvFBbin, data=Sleepave1, Hess=TRUE);ctable=coef(summary(m5));p=pnorm(abs(ctable[,"t value"]),lower.tail=FALSE)*2;ci=confint(m5);print(p);print(ci)
-m6<-polr(failure1 ~ SRvFBbin, data=Sleepave1, Hess=TRUE);ctable=coef(summary(m6));p=pnorm(abs(ctable[,"t value"]),lower.tail=FALSE)*2;ci=confint(m6);print(p);print(ci) 
-m7<-polr(concentr1 ~ SRvFBbin, data=Sleepave1, Hess=TRUE);ctable=coef(summary(m7));p=pnorm(abs(ctable[,"t value"]),lower.tail=FALSE)*2;ci=confint(m7);print(p);print(ci)
-m8<-polr(activity1 ~ SRvFBbin, data=Sleepave1, Hess=TRUE);ctable=coef(summary(m8));p=pnorm(abs(ctable[,"t value"]),lower.tail=FALSE)*2;ci=confint(m8);print(p);print(ci)
-m9<-polr(suic1 ~ SRvFBbin, data=Sleepave1, Hess=TRUE);ctable=coef(summary(m9));p=pnorm(abs(ctable[,"t value"]),lower.tail=FALSE)*2;ci=confint(m9);print(p);print(ci)
-
-m1<-polr(interest1 ~ sleepsrvfb, data=Sleepave1, Hess=TRUE);ctable=coef(summary(m1));p=pnorm(abs(ctable[,"t value"]),lower.tail=FALSE)*2;ci=confint(m1);print(p);print(ci)
-m2<-polr(down1 ~ sleepsrvfb, data=Sleepave1, Hess=TRUE);ctable=coef(summary(m2));p=pnorm(abs(ctable[,"t value"]),lower.tail=FALSE)*2;ci=confint(m2);print(p);print(ci)
-m3<-polr(asleep1 ~ sleepsrvfb, data=Sleepave1, Hess=TRUE);ctable=coef(summary(m3));p=pnorm(abs(ctable[,"t value"]),lower.tail=FALSE)*2;ci=confint(m3);print(p);print(ci)
-m4<-polr(tired1 ~ sleepsrvfb, data=Sleepave1, Hess=TRUE);ctable=coef(summary(m4));p=pnorm(abs(ctable[,"t value"]),lower.tail=FALSE)*2;ci=confint(m4);print(p);print(ci)
-m5<-polr(appetite1 ~ sleepsrvfb, data=Sleepave1, Hess=TRUE);ctable=coef(summary(m5));p=pnorm(abs(ctable[,"t value"]),lower.tail=FALSE)*2;ci=confint(m5);print(p);print(ci)
-m6<-polr(failure1 ~ sleepsrvfb, data=Sleepave1, Hess=TRUE);ctable=coef(summary(m6));p=pnorm(abs(ctable[,"t value"]),lower.tail=FALSE)*2;ci=confint(m6);print(p);print(ci) 
-m7<-polr(concentr1 ~ sleepsrvfb, data=Sleepave1, Hess=TRUE);ctable=coef(summary(m7));p=pnorm(abs(ctable[,"t value"]),lower.tail=FALSE)*2;ci=confint(m7);print(p);print(ci)
-m8<-polr(activity1 ~ sleepsrvfb, data=Sleepave1, Hess=TRUE);ctable=coef(summary(m8));p=pnorm(abs(ctable[,"t value"]),lower.tail=FALSE)*2;ci=confint(m8);print(p);print(ci)
-m9<-polr(suic1 ~ sleepsrvfb, data=Sleepave1, Hess=TRUE);ctable=coef(summary(m9));p=pnorm(abs(ctable[,"t value"]),lower.tail=FALSE)*2;ci=confint(m9);print(p);print(ci)
-
+m1<-polr(interest1 ~ AvI, data=Sleepave1, Hess=TRUE);ctable=coef(summary(m1));p=pnorm(abs(ctable[,"t value"]),lower.tail=FALSE)*2;print(p);ci=confint(m1);print(ci);
+m2<-polr(down1 ~ AvI, data=Sleepave1, Hess=TRUE);ctable=coef(summary(m2));p=pnorm(abs(ctable[,"t value"]),lower.tail=FALSE)*2;print(p);ci=confint(m2);print(ci);
+m3<-polr(asleep1 ~ AvI, data=Sleepave1, Hess=TRUE);ctable=coef(summary(m3));p=pnorm(abs(ctable[,"t value"]),lower.tail=FALSE)*2;print(p);ci=confint(m3);print(ci)
+m4<-polr(tired1 ~ AvI, data=Sleepave1, Hess=TRUE);ctable=coef(summary(m4));p=pnorm(abs(ctable[,"t value"]),lower.tail=FALSE)*2;print(p);ci=confint(m4);print(ci)
+m5<-polr(appetite1 ~ AvI, data=Sleepave1, Hess=TRUE);ctable=coef(summary(m5));p=pnorm(abs(ctable[,"t value"]),lower.tail=FALSE)*2;print(p);ci=confint(m5);print(ci)
+m6<-polr(failure1 ~ AvI, data=Sleepave1, Hess=TRUE);ctable=coef(summary(m6));p=pnorm(abs(ctable[,"t value"]),lower.tail=FALSE)*2;print(p);ci=confint(m6);print(ci) 
+m7<-polr(concentr1 ~ AvI, data=Sleepave1, Hess=TRUE);ctable=coef(summary(m7));p=pnorm(abs(ctable[,"t value"]),lower.tail=FALSE)*2;print(p);ci=confint(m7);print(ci)
+m8<-polr(activity1 ~ AvI, data=Sleepave1, Hess=TRUE);ctable=coef(summary(m8));p=pnorm(abs(ctable[,"t value"]),lower.tail=FALSE)*2;print(p);ci=confint(m8);print(ci)
+m9<-polr(suic1 ~ AvI, data=Sleepave1, Hess=TRUE);ctable=coef(summary(m9));p=pnorm(abs(ctable[,"t value"]),lower.tail=FALSE)*2;print(p);ci=confint(m9);print(ci)
 
 # t-test on PHQ tot
 pt1=Sleepave1$PHQtot1[which(Sleepave1$sleepsrvfb>1)];pt2=Sleepave1$PHQtot1[which(Sleepave1$sleepsrvfb<1)]
@@ -941,6 +957,47 @@ t.test(pt1,pt2,paired = F)
 # plot
 plot(Sleepave1$sleepfb,Sleepave1$sleepsr,xlab="fitbit sleep average (hr)",ylab="self report sleep average (hr)")
 abline(0,1)
-# Sleep on PHQ date 2
+#### Sleep on PHQ date 2 ####
 SleepPHQ2=merge(PHQSleep,Sleep,by.x=c("UserID","surveyDate2"),by.y=c("Id","SleepDay"))
+SleepPHQ2=SleepPHQ2[c("UserID","surveyDate2","Year","sleep24h2","sleepAve2","interest2","down2","asleep2","tired2","appetite2","failure2","concentr2","activity2","suic2","PHQtot2",
+                      "TotalSleepRecords","TotalMinutesAsleep","TotalTimeInBed")]
+SleepPHQ.generalname=c("surveyDate","sleep24h","sleepAve","interest","down","asleep","tired","appetite","failure","concentr","activity","suic","PHQtot")
+colnames(SleepPHQ1)[c(2,4:15)]=SleepPHQ.generalname
+colnames(SleepPHQ2)[c(2,4:15)]=SleepPHQ.generalname
+SleepPHQ12=rbind(SleepPHQ1,SleepPHQ2)
+SleepPHQ12$TotalHrAsleep=SleepPHQ12$TotalMinutesAsleep/60
+SleepPHQ12$SRvFB=SleepPHQ12$sleep24h/SleepPHQ12$TotalHrAsleep
+SleepPHQ12$SRvFBbin=SleepPHQ12$SRvFB>1
+SPfactorcols=c("interest","down","asleep","tired","appetite","failure","concentr","activity","suic")
+# way one: factorize the scores (0,1,2,3)
+SleepPHQ12[SPfactorcols]<-lapply(SleepPHQ12[SPfactorcols],as.factor)
+# way two: binarize the scores (0,1)
+SleepPHQ12[SPfactorcols]=ifelse(SleepPHQ12[SPfactorcols]>0,1,0)
+m1<-glmer(interest ~ SRvFBbin + (1|UserID),data=SleepPHQ12,family=binomial,nAGQ=0);summary(m1)
+m2<-glmer(down ~ SRvFBbin + (1|UserID),data=SleepPHQ12,family=binomial,nAGQ=0);summary(m2)
+m3<-glmer(asleep ~ SRvFBbin + (1|UserID),data=SleepPHQ12,family=binomial,nAGQ=0);summary(m3)
+m4<-glmer(tired ~ SRvFBbin + (1|UserID),data=SleepPHQ12,family=binomial,nAGQ=0);summary(m4)
+m5<-glmer(appetite ~ SRvFBbin + (1|UserID),data=SleepPHQ12,family=binomial,nAGQ=0);summary(m5)
+m6<-glmer(failure ~ SRvFBbin + (1|UserID),data=SleepPHQ12,family=binomial,nAGQ=0);summary(m6)
+m7<-glmer(concentr ~ SRvFBbin + (1|UserID),data=SleepPHQ12,family=binomial,nAGQ=0);summary(m7)
+m8<-glmer(activity ~ SRvFBbin + (1|UserID),data=SleepPHQ12,family=binomial,nAGQ=0);summary(m8)
+m9<-glmer(suic ~ SRvFBbin + (1|UserID),data=SleepPHQ12,family=binomial,nAGQ=0);summary(m9)                                                                           
+
+m1<-glmer(interest ~ SRvFB + (1|UserID),data=SleepPHQ12,family=binomial,nAGQ=0);summary(m1)
+m2<-glmer(down ~ SRvFB + (1|UserID),data=SleepPHQ12,family=binomial,nAGQ=0);summary(m2)
+m3<-glmer(asleep ~ SRvFB + (1|UserID),data=SleepPHQ12,family=binomial,nAGQ=0);summary(m3)
+m4<-glmer(tired ~ SRvFB + (1|UserID),data=SleepPHQ12,family=binomial,nAGQ=0);summary(m4)
+m5<-glmer(appetite ~ SRvFB + (1|UserID),data=SleepPHQ12,family=binomial,nAGQ=0);summary(m5)
+m6<-glmer(failure ~ SRvFB + (1|UserID),data=SleepPHQ12,family=binomial,nAGQ=0);summary(m6)
+m7<-glmer(concentr ~ SRvFB + (1|UserID),data=SleepPHQ12,family=binomial,nAGQ=0);summary(m7)
+m8<-glmer(activity ~ SRvFB + (1|UserID),data=SleepPHQ12,family=binomial,nAGQ=0);summary(m8)
+m9<-glmer(suic ~ SRvFB + (1|UserID),data=SleepPHQ12,family=binomial,nAGQ=0);summary(m9) 
+
 # Average Sleep on the week before PHQ date 2
+
+#### PHQ & Activity ####
+
+#### PHQ & Mood ####
+PHQMood <- merge(PHQ, Summary.mood, by.x="UserID",by.y="id")
+m1<-lm(RR ~ PHQtot0, data=PHQMood);summary(m1)
+
