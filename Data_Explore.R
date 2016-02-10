@@ -698,10 +698,13 @@ rcorr(MoodAct$TotalSteps,MoodAct$SedentaryMinutes)
 MoodActSleep=merge(MoodAct,MoodSleep,by=c("userid","Date_mood","mood"),all=FALSE)
 MAS.null=lmer(mood ~ (1|userid),data=MoodActSleep,REML=FALSE)
 MAS.act=lmer(mood ~ TotalStepslog + (1|userid),data=MoodActSleep,REML=FALSE)
+MAS.sleep=lmer(mood ~ TotalhrAsleep + (1|userid),data=MoodActSleep,REML=FALSE)
 MAS.actsleep=lmer(mood ~ TotalStepslog + TotalhrAsleep + (1|userid),data=MoodActSleep,REML=FALSE)
 MAS.actsleep.inter=lmer(mood ~ TotalStepslog*TotalhrAsleep + (1|userid),data=MoodActSleep,REML=FALSE)
 summary(MAS.actsleep)
-anova(MAS.null,MAS.act,MAS.actsleep,MAS.actsleep.inter)
+anova(MAS.null,MAS.act)
+anova(MAS.null,MAS.sleep)
+anova(MAS.null,MAS.actsleep,MAS.actsleep.inter)
 hist(residuals(MAS.actsleep))
 qqnorm(residuals(MAS.actsleep))
 
@@ -741,6 +744,7 @@ MASIb.sleepact.inter.rs <- lmer(mood ~ TotalStepslog * TotalhrAsleep + (1+TotalS
 anova(MASIb.null,MASIb.sleep)
 anova(MASIb.null,MASIb.act)
 anova(MASIb.null,MASIb.sleep,MASIb.sleepact,MASIb.sleepact.inter)
+anova(MASIb.null,MASIb.sleepact,MASIb.sleepact.inter)
 anova(MASIb.sleep,MASIb.sleep.rs)
 anova(MASIb.act,MASIb.act.rs)
 anova(MASIb.null,MASIb.act.rs,MASIb.sleepact.rs,MASIb.sleepact.inter.rs)
@@ -754,7 +758,7 @@ MASIa.sleepact <- lmer(mood ~ TotalStepslog + TotalhrAsleep + (1|userid),data=MA
 MASIa.sleepact.inter <- lmer(mood ~ TotalStepslog * TotalhrAsleep + (1|userid),data=MASIafter,REML=FALSE);summary(MASIa.sleepact.inter)
 anova(MASIa.null,MASIa.sleep)
 anova(MASIa.null,MASIa.act)
-anova(MASIa.null,MASIa.sleep,MASIa.sleepact,MASIa.sleepact.inter)
+anova(MASIa.null,MASIa.sleepact,MASIa.sleepact.inter)
 anova(MASIa.sleep,MASIa.sleep.rs)
 anova(MASIa.act,MASIa.act.rs)
 
@@ -768,10 +772,12 @@ anova(MASI.ba.mood.null,MASI.ba.mood)
 anova(MASI.ba.act.null,MASI.ba.act)
 anova(MASI.ba.sleep.null,MASI.ba.sleep)
 
-#### Mood report frequency ####
 
-
-
+####################################### Mood/Activity/Sleep summary ####################################### 
+Summary.MSA = merge(Summary.activity,Summary.sleep,by="id",all.x=TRUE)
+Summary.MSA = merge(Summary.MSA,Summary.mood,by="id",all.x=TRUE)
+MSA.corr=rcorr(as.matrix(Summary.MSA[c("meanSteps","meancalories","meandistance","meanveryactmin","meanfairactmin","meanlightactmin","meansedmin","meanMinAsleep","meanMinInbed","meanAsleepInbedratio","meanMood")]))
+write.table(data.frame(MSA.corr$P),"work/Fitbit/FBscripts/tmp.csv",sep=",")
 ####################################### PHQ #######################################
 PHQ=read.csv("Z:././././Data Analysis/Yu Fang/data/data14all_15BLq1q2_PHQ_Sleep_01292016.csv")
 
@@ -853,8 +859,11 @@ SleepPHQ1$TotalHrAsleep=SleepPHQ1$TotalMinutesAsleep/60
 SleepPHQ1$SRvFB=SleepPHQ1$sleep24h1/SleepPHQ1$TotalHrAsleep
 SleepPHQ1$SRvFBbin=SleepPHQ1$SRvFB>1
 SleepPHQ1$AvI=SleepPHQ1$TotalMinutesAsleep/SleepPHQ1$TotalTimeInBed
+#### plot SRvFB vs PHQtot
+plot(SleepPHQ1$SRvFB,SleepPHQ1$PHQtot1,type="p",xlab="selfreport/fitbit sleep",ylab="PHQtotal",main="PHQ date1",col="blue",
+     pch=20,cex=1.5,cex.lab=1.5,cex.main=2)
 
-# predict variables: SRvFB, SRvFBbin, TotalHrAsleep, AVI
+#### predict variables: SRvFB, SRvFBbin, TotalHrAsleep, AVI ####
 m1=glm(interest1 ~ AvI, family=binomial(link='logit'),data=SleepPHQ1);summary(m1)
 m2=glm(down1 ~ AvI, family=binomial(link='logit'),data=SleepPHQ1);summary(m2)
 m3=glm(asleep1 ~ AvI, family=binomial(link='logit'),data=SleepPHQ1);summary(m3)
@@ -864,7 +873,7 @@ m6=glm(failure1 ~ AvI, family=binomial(link='logit'),data=SleepPHQ1);summary(m6)
 m7=glm(concentr1 ~ AvI, family=binomial(link='logit'),data=SleepPHQ1);summary(m7)
 m8=glm(activity1 ~ AvI, family=binomial(link='logit'),data=SleepPHQ1);summary(m8)
 m9=glm(suic1 ~ AvI, family=binomial(link='logit'),data=SleepPHQ1);summary(m9)
-m10=lm(PHQtot1 ~ AvI, data=SleepPHQ1);summary(m10)
+m10=lm(PHQtot1 ~ SRvFB, data=SleepPHQ1);summary(m10)
 
 lapply(SleepPHQ1[,c("down1","SRvFB")],table)
 ftable(xtabs(~ down1 + SRvFB,data=SleepPHQ1))
@@ -910,6 +919,9 @@ for (isub in 1:nsub){
 }
 Sleepave1=out
 
+plot(Sleepave1$sleepsrvfb,Sleepave1$PHQtot1,type="p",xlab="selfreport/fitbit sleep",ylab="PHQtotal",main="PHQ date1 past week average",col="blue",
+     pch=20,cex=1.5,cex.lab=1.5,cex.main=2)
+
 subs=unique(Sleepave2$Id)
 nsub=length(subs)
 for (isub in 1:nsub){
@@ -929,7 +941,7 @@ Sleepave1[SPfactorcols]<-lapply(Sleepave1[SPfactorcols],as.factor)
 # way two: binarize the scores (0,1)
 Sleepave1[SPfactorcols]=ifelse(Sleepave1[SPfactorcols]>0,1,0)
 
-# predict variables: sleepsrvfb, SRvFBbin, sleepfb, AvI
+#### predict variables: sleepsrvfb, SRvFBbin, sleepfb, AvI ####
 m1=glm(interest1 ~ AvI, family=binomial(link='logit'),data=Sleepave1);summary(m1)
 m2=glm(down1 ~ AvI, family=binomial(link='logit'),data=Sleepave1);summary(m2);
 m3=glm(asleep1 ~ AvI, family=binomial(link='logit'),data=Sleepave1);summary(m3)
@@ -995,9 +1007,62 @@ m9<-glmer(suic ~ SRvFB + (1|UserID),data=SleepPHQ12,family=binomial,nAGQ=0);summ
 
 # Average Sleep on the week before PHQ date 2
 
-#### PHQ & Activity ####
+############ PHQ & Activity ############
+PHQActivity <- PHQ[which(PHQ$UserID %in% Activity$Id),]
+PHQActivity$surveyDate1<-as.Date(as.character(PHQActivity$surveyDate1),"%d%b%y")
+PHQActivity$surveyDate2<-as.Date(as.character(PHQActivity$surveyDate2),"%d%b%y")
+ActivityPHQ1=merge(PHQActivity,Activity,by.x=c("UserID","surveyDate1"),by.y=c("Id","ActivityDate"))
+ActivityPHQ1=ActivityPHQ1[c("UserID","surveyDate1","Year","sleep24h1","sleepAve1","interest1","down1","asleep1","tired1","appetite1","failure1","concentr1","activity1","suic1","PHQtot1",
+                            "TotalSteps","TotalDistance","TrackerDistance","LoggedActivitiesDistance","VeryActiveDistance","ModeratelyActiveDistance","LightActiveDistance",
+                            "SedentaryActiveDistance","VeryActiveMinutes","FairlyActiveMinutes","LightlyActiveMinutes","SedentaryMinutes","Calories")]
+# way one: factorize the scores (0,1,2,3)
+ActivityPHQ1[SPfactorcols]<-lapply(ActivityPHQ1[SPfactorcols],as.factor)
+# way two: binarize the scores (0,1)
+ActivityPHQ1[SPfactorcols]=ifelse(ActivityPHQ1[SPfactorcols]>0,1,0)
+ActivityPHQ1$TotalStepslog=log10(ActivityPHQ1$TotalSteps)
+##### predict variables: TotalStepslog Calories SedentaryMinutes ####
+m1=glm(interest1 ~ SedentaryMinutes, family=binomial(link='logit'),data=ActivityPHQ1);summary(m1)
+m2=glm(down1 ~ SedentaryMinutes, family=binomial(link='logit'),data=ActivityPHQ1);summary(m2)
+m3=glm(asleep1 ~ SedentaryMinutes, family=binomial(link='logit'),data=ActivityPHQ1);summary(m3)
+m4=glm(tired1 ~ SedentaryMinutes, family=binomial(link='logit'),data=ActivityPHQ1);summary(m4)
+m5=glm(appetite1 ~ SedentaryMinutes, family=binomial(link='logit'),data=ActivityPHQ1);summary(m5)
+m6=glm(failure1 ~ SedentaryMinutes, family=binomial(link='logit'),data=ActivityPHQ1);summary(m6)
+m7=glm(concentr1 ~ SedentaryMinutes, family=binomial(link='logit'),data=ActivityPHQ1);summary(m7)
+m8=glm(activity1 ~ SedentaryMinutes, family=binomial(link='logit'),data=ActivityPHQ1);summary(m8)
+m9=glm(suic1 ~ SedentaryMinutes, family=binomial(link='logit'),data=ActivityPHQ1);summary(m9)
+m10=lm(PHQtot1 ~ SedentaryMinutes, data=ActivityPHQ1);summary(m10)
+#### average past week ####
+Activityave=merge(Activity,PHQActivity,by.x="Id",by.y="UserID")
+Activityave1=Activityave[which((Activityave$surveyDate1 - Activityave$ActivityDate >=0) & (Activityave$surveyDate1-Activityave$ActivityDate<7)),]
+subs=unique(Activityave1$Id)
+nsub=length(subs)
+for (isub in 1:nsub){
+  tmp=Activityave1[which(Activityave1$Id==subs[isub]),]
+  newtmp=data.frame(id=subs[isub],TotalStepslog=mean(log10(tmp$TotalSteps)),Calories=mean(tmp$Calories),
+                    SedentaryMinutes=mean(tmp$SedentaryMinutes),
+                    PHQtot1=tmp$PHQtot1[1],interest1=tmp$interest1[1],down1=tmp$down1[1],asleep1=tmp$asleep1[1],tired1=tmp$tired1[1],
+                    appetite1=tmp$appetite1[1],failure1=tmp$failure1[1],concentr1=tmp$concentr1[1],activity1=tmp$activity1[1],suic1=tmp$suic1[1])
+  if (isub==1){out=newtmp}
+  else {out=rbind(out,newtmp)}
+}
+Activityave1=out
+# way one: factorize the scores (0,1,2,3)
+Activityave1[SPfactorcols]<-lapply(Activityave1[SPfactorcols],as.factor)
+# way two: binarize the scores (0,1)
+Activityave1[SPfactorcols]=ifelse(Activityave1[SPfactorcols]>0,1,0)
+##### predict variables: TotalStepslog Calories SedentaryMinutes ####
+m1=glm(interest1 ~ Calories, family=binomial(link='logit'),data=Activityave1);summary(m1)
+m2=glm(down1 ~ Calories, family=binomial(link='logit'),data=Activityave1);summary(m2)
+m3=glm(asleep1 ~ Calories, family=binomial(link='logit'),data=Activityave1);summary(m3)
+m4=glm(tired1 ~ Calories, family=binomial(link='logit'),data=Activityave1);summary(m4)  # sig: sedentarymin
+m5=glm(appetite1 ~ Calories, family=binomial(link='logit'),data=Activityave1);summary(m5)
+m6=glm(failure1 ~ Calories, family=binomial(link='logit'),data=Activityave1);summary(m6)
+m7=glm(concentr1 ~ Calories, family=binomial(link='logit'),data=Activityave1);summary(m7)
+m8=glm(activity1 ~ Calories, family=binomial(link='logit'),data=Activityave1);summary(m8)
+m9=glm(suic1 ~ Calories, family=binomial(link='logit'),data=Activityave1);summary(m9)
+m10=lm(PHQtot1 ~ Calories, data=Activityave1);summary(m10)
 
-#### PHQ & Mood ####
+############ PHQ & Mood ############
 PHQMood <- merge(PHQ, Summary.mood, by.x="UserID",by.y="id")
 m1<-lm(RR ~ PHQtot0, data=PHQMood);summary(m1)
 
