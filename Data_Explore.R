@@ -142,14 +142,12 @@ MoodSummary=function(dayfile,subj,allcols,InternStart){
   colnames(out)=allcols
   return(out)
 }
-
 ####################################### StartDate ####################################### 
 StartDate2014=read.csv('Z:././././Data Analysis/Yu Fang/data/2014BioShort1.csv')
 StartDate2015=read.csv('Z:./././././Data Analysis/Yu Fang/data/2015BioShort1.csv')
 StartDate2014=StartDate2014[c("USERID","StartDate")]
 StartDate2015=StartDate2015[c("USERID","StartDate")];StartDate2015$USERID=as.character(StartDate2015$USERID)
 StartDates=rbind(StartDate2014,StartDate2015)
-
 ####################################### Sleep #######################################
 # day sleep 2014
 Sleep2014=read.csv('work/Fitbit/2014_Cohort_all//sleepDay_merged.csv')
@@ -194,7 +192,6 @@ sleep.model.paired.meaninbed=t.test(Summary.sleep$meanMinInbed.pre,Summary.sleep
 sleep.model.paired.meanratio.2014=t.test(Summary.sleep.2014$meanAsleepInbedratio.pre,Summary.sleep.2014$meanAsleepInbedratio.post,paired=T);sleep.model.paired.meanratio.2014
 sleep.model.paired.meanratio.2015=t.test(Summary.sleep.2015$meanAsleepInbedratio.pre,Summary.sleep.2015$meanAsleepInbedratio.post,paired=T);sleep.model.paired.meanratio.2015
 sleep.model.paired.meanratio=t.test(Summary.sleep$meanAsleepInbedratio.pre,Summary.sleep$meanAsleepInbedratio.post,paired=T);sleep.model.paired.meanratio
-
 ####################################### Activity #######################################
 #### daily activity ####
 Activity2014=read.csv('work/Fitbit/2014_Cohort_all/dailyActivity_merged.csv')
@@ -258,7 +255,6 @@ activity.model.paired.meanlightactmin=t.test(Summary.activity$meanlightactmin.pr
 activity.model.paired.meansedmin.2014=t.test(Summary.activity.2014$meansedmin.pre,Summary.activity.2014$meansedmin.post,paired=T);activity.model.paired.meansedmin.2014
 activity.model.paired.meansedmin.2015=t.test(Summary.activity.2015$meansedmin.pre,Summary.activity.2015$meansedmin.post,paired=T);activity.model.paired.meansedmin.2015
 activity.model.paired.meansedmin=t.test(Summary.activity$meansedmin.pre,Summary.activity$meansedmin.post,paired=T);activity.model.paired.meansedmin
-
 ##### correlations of steps vs. calories/distance ####
 activity.corr.stepvscal=rcorr(Summary.activity$meanSteps,Summary.activity$meancalories)
 activity.corr.stepvsdist=rcorr(Summary.activity$meanSteps,Summary.activity$meandistance)
@@ -456,6 +452,9 @@ Summary.mood.2014=Summary.mood[which(Summary.mood$end < as.Date("2015-01-01")),]
 mood.model.paired.2014=t.test(Summary.mood.2014$meanMood.pre,Summary.mood.2014$meanMood.post,paired=T)
 Summary.mood.2015=Summary.mood[which(Summary.mood$end > as.Date("2015-01-01")),]
 mood.model.paired.2015=t.test(Summary.mood.2015$meanMood.pre,Summary.mood.2015$meanMood.post,paired=T)
+############## Add gender and age to Mood ##############
+tmpMood=merge(Mood,PHQ[c("UserID","Age","Sex")],by.x="userid",by.y="UserID",all.x=TRUE)
+Mood=tmpMood
 ###### Mood & Activity ######
 MoodAct=merge(Mood,Activity,by.x=c("userid","Date_mood"),by.y=c("Id","ActivityDate"),sort=TRUE)
 MoodAct2014=MoodAct[which(MoodAct$Date_mood < as.Date("2015-01-01")),]
@@ -517,7 +516,6 @@ axis(side=4,at=pretty(range(MoodAct2015.daily$step_mean)))
 mtext("steps",side=4,line=3)
 legend("topright",bty="n",c("Mood","Steps"),lty=c(1,1),lwd=c(2,2),col=c("blue","green"))
 title("Mood vs Step 2015")
-
 #### plot mood/sedentary minutes ####
 par(mar=c(5,4,4,6)+0.1)
 plot(MoodAct2014.daily$Date_mood,MoodAct2014.daily$mood_mean,type="l",xlab="Date",ylab="Mood",main="Mood and sedentary minutes 2014",ylim=c(2,10),col="blue")
@@ -578,7 +576,6 @@ axis(side=4,at=pretty(range(MoodAct2015.daily$cal_mean)))
 mtext("C",side=4,line=3)
 legend("topright",bty="n",c("Mood","Calories"),lty=c(1,1),lwd=c(2,2),col=c("blue","purple"))
 title("Mood vs Calories 2015")
-
 ############## Mood & Sleep ##############
 MoodSleep=merge(Mood,Sleep,by.x=c("userid","Date_mood"),by.y=c("Id","SleepDay"),sort=TRUE)
 MoodSleep=MoodSleep[which(MoodSleep$TotalMinutesAsleep!=0 & !is.na(MoodSleep$mood)),]
@@ -669,13 +666,17 @@ summary(MoodSleepModel)
 # Mood-Sleep
 MoodSleep$userid=as.factor(MoodSleep$userid)
 MoodSleep$TotalhrAsleep=MoodSleep$TotalMinutesAsleep/60
-MoodSleep$TotalhrAsleepInt=round(MoodSleep$TotalMinutesAsleep/60)
 boxplot(mood ~ userid,MoodSleep,xlab="Subject",ylab="Mood")
 boxplot(mood ~ TotalhrAsleepInt,MoodSleep)
+boxplot(mood ~ Sex, MoodSleep,xlab="Gender",ylab="Mood")
+boxplot(mood ~ Age, MoodSleep,xlab="Age",ylab="Mood")
+boxplot(mood ~ Age * Sex,MoodSleep)
 MoodSleep.null=lmer(mood ~ (1|userid),data=MoodSleep,REML=FALSE)
+MoodSleep.null.AG=lmer(mood ~ Age + Sex + (1|userid),data=MoodSleep,REML=FALSE);summary(MoodSleep.null.AG)
 MoodSleep.Mixed=lmer(mood ~ TotalhrAsleep + (1|userid),data=MoodSleep,REML=FALSE);summary(MoodSleep.Mixed)
+MoodSleep.Mixed.AG=lmer(mood ~ Age + Sex + TotalhrAsleep + (1|userid),data=MoodSleep,REML=FALSE);summary(MoodSleep.Mixed.AG)
 anova(MoodSleep.null,MoodSleep.Mixed)
-coef(MoodSleep.Mixed)
+anova(MoodSleep.null.AG,MoodSleep.Mixed.AG)
 MoodSleep.Mixed.randslope=lmer(mood ~ TotalhrAsleep + (1+TotalhrAsleep|userid),data=MoodSleep,REML=FALSE)
 MoodSleep.null.randslope=lmer(mood ~ (1+TotalhrAsleep|userid),data=MoodSleep,REML=FALSE)
 coef(MoodSleep.Mixed.randslope)
@@ -688,7 +689,7 @@ anova(MoodSleep.null,MoodSleep.effmixed)
 MoodSleep.effmixed2=lmer(mood ~ TotalhrAsleep + Ratio + (1|userid),data=MoodSleep,REML=FALSE);summary(MoodSleep.effmixed2)
 MoodSleep.effmixed2rs.null=lmer(mood ~ TotalhrAsleep  + (1+Ratio|userid),data=MoodSleep,REML=FALSE);summary(MoodSleep.effmixed2rs.null)
 MoodSleep.effmixed2rs=lmer(mood ~ TotalhrAsleep + Ratio + (1+Ratio|userid),data=MoodSleep,REML=FALSE);summary(MoodSleep.effmixed2rs)
-anova(MoodSleep.Mixed,MoodSleep.effmixed2)
+anova(MoodSleep.null,MoodSleep.Mixed,MoodSleep.effmixed2)
 anova(MoodSleep.effmixed2rs.null,MoodSleep.effmixed2rs)
 ##### Mood-Activity ####
 MoodAct$userid=as.factor(MoodAct$userid)
@@ -703,18 +704,27 @@ summary(MoodAct.Mixed.randslope)
 anova(MoodAct.null.randslope,MoodAct.Mixed.randslope)
 rcorr(MoodAct$TotalSteps,MoodAct$SedentaryMinutes)
 #### Mood - Activity & Sleep ####
-MoodActSleep=merge(MoodAct,MoodSleep,by=c("userid","Date_mood","mood"),all=FALSE)
+MoodActSleep=merge(MoodAct,MoodSleep,by=c("userid","Date_mood","mood","Age","Sex"),all=FALSE)
+#MoodActSleep=merge(MoodAct,MoodSleep,by=c("userid","Date_mood","mood"),all=FALSE)
 MAS.null=lmer(mood ~ (1|userid),data=MoodActSleep,REML=FALSE)
 MAS.act=lmer(mood ~ TotalStepslog + (1|userid),data=MoodActSleep,REML=FALSE)
 MAS.sleep=lmer(mood ~ TotalhrAsleep + (1|userid),data=MoodActSleep,REML=FALSE)
-MAS.actsleep=lmer(mood ~ TotalStepslog + TotalhrAsleep + (1|userid),data=MoodActSleep,REML=FALSE)
-MAS.actsleep.inter=lmer(mood ~ TotalStepslog*TotalhrAsleep + (1|userid),data=MoodActSleep,REML=FALSE)
-summary(MAS.actsleep)
-anova(MAS.null,MAS.act)
-anova(MAS.null,MAS.sleep)
-anova(MAS.null,MAS.actsleep,MAS.actsleep.inter)
-hist(residuals(MAS.actsleep))
-qqnorm(residuals(MAS.actsleep))
+MAS.actsleep=lmer(mood ~ TotalStepslog + TotalhrAsleep + (1|userid),data=MoodActSleep,REML=FALSE);summary(MAS.actsleep)
+MAS.actsleep.inter=lmer(mood ~ TotalStepslog*TotalhrAsleep + (1|userid),data=MoodActSleep,REML=FALSE);summary(MAS.actsleep.inter)
+anova(MAS.act,MAS.actsleep)
+anova(MAS.sleep,MAS.actsleep)
+anova(MAS.null,MAS.act,MAS.actsleep,MAS.actsleep.inter)
+hist(residuals(MAS.actsleep));qqnorm(residuals(MAS.actsleep))
+
+MAS.null.AG=lmer(mood ~ Age + Sex  + (1|userid),data=MoodActSleep,REML=FALSE);summary(MAS.null.AG)
+MAS.act.AG=lmer(mood ~ Age  + Sex  + TotalStepslog + (1|userid),data=MoodActSleep,REML=FALSE);summary(MAS.act.AG)
+MAS.sleep.AG=lmer(mood ~ Age + Sex + TotalhrAsleep + (1|userid),data=MoodActSleep,REML=FALSE);summary(MAS.sleep.AG)
+MAS.actsleep.AG=lmer(mood ~ Age + Sex + TotalStepslog + TotalhrAsleep + (1|userid),data=MoodActSleep,REML=FALSE);summary(MAS.actsleep.AG)
+MAS.actsleep.inter.AG=lmer(mood ~ Age + Sex + TotalStepslog*TotalhrAsleep + (1|userid),data=MoodActSleep,REML=FALSE);summary(MAS.actsleep.inter.AG)
+anova(MAS.null.AG,MAS.act.AG,MAS.actsleep.AG,MAS.actsleep.inter.AG)
+anova(MAS.act.AG,MAS.actsleep.AG)
+anova(MAS.sleep.AG,MAS.actsleep.AG)
+hist(residuals(MAS.actsleep));qqnorm(residuals(MAS.actsleep))
 
 MAS.null.rs=lmer(mood ~ (1+TotalStepslog|userid),data=MoodActSleep,REML=FALSE)
 MAS.act.rs=lmer(mood ~ TotalStepslog + (1+TotalStepslog|userid),data=MoodActSleep,REML=FALSE)
@@ -728,7 +738,6 @@ MAS.null.rs=lmer(mood ~ (1+TotalhrAsleep|userid),data=MoodActSleep,REML=FALSE)
 MAS.sleep.rs=lmer(mood ~ TotalhrAsleep + (1+TotalhrAsleep|userid),data=MoodActSleep,REML=FALSE)
 MAS.actsleep.rs=lmer(mood ~ TotalStepslog + TotalhrAsleep + (1+TotalhrAsleep|userid),data=MoodActSleep,REML=FALSE)
 MAS.actsleep.inter.rs=lmer(mood ~ TotalStepslog*TotalhrAsleep + (1+TotalhrAsleep|userid),data=MoodActSleep,REML=FALSE)
-screenreg(MAS.actsleep.rs)
 anova(MAS.null.rs,MAS.sleep.rs,MAS.actsleep.rs,MAS.actsleep.inter.rs)
 hist(residuals(MAS.actsleep.rs))
 qqnorm(residuals(MAS.actsleep.rs))
@@ -749,13 +758,25 @@ MASIb.sleepact <- lmer(mood ~ TotalStepslog + TotalhrAsleep + (1|userid),data=MA
 MASIb.sleepact.rs <- lmer(mood ~ TotalStepslog + TotalhrAsleep + (1+TotalStepslog|userid),data=MASIbefore,REML=FALSE);summary(MASIb.sleepact.rs)
 MASIb.sleepact.inter <- lmer(mood ~ TotalStepslog * TotalhrAsleep + (1|userid),data=MASIbefore,REML=FALSE);summary(MASIb.sleepact.inter)
 MASIb.sleepact.inter.rs <- lmer(mood ~ TotalStepslog * TotalhrAsleep + (1+TotalStepslog|userid),data=MASIbefore,REML=FALSE);summary(MASIb.sleepact.inter.rs)
-anova(MASIb.null,MASIb.sleep)
-anova(MASIb.null,MASIb.act)
-anova(MASIb.null,MASIb.sleep,MASIb.sleepact,MASIb.sleepact.inter)
+anova(MASIb.sleep,MASIb.sleepact)
+anova(MASIb.act,MASIb.sleepact)
 anova(MASIb.null,MASIb.sleepact,MASIb.sleepact.inter)
 anova(MASIb.sleep,MASIb.sleep.rs)
 anova(MASIb.act,MASIb.act.rs)
 anova(MASIb.null,MASIb.act.rs,MASIb.sleepact.rs,MASIb.sleepact.inter.rs)
+
+MASIb.null.AG <- lmer(mood ~ Age+Sex+(1|userid),data=MASIbefore,REML=FALSE);summary(MASIb.null.AG)
+MASIb.sleep.AG <- lmer(mood ~ Age+Sex+TotalhrAsleep + (1|userid),data=MASIbefore, REML=FALSE );summary(MASIb.sleep.AG)
+MASIb.sleep.rs.AG <- lmer(mood ~ Age+Sex+TotalhrAsleep + (1+TotalhrAsleep|userid),data=MASIbefore,REML=FALSE);summary(MASIb.sleep.rs.AG)
+MASIb.act.AG <- lmer(mood ~ Age+Sex+TotalStepslog + (1|userid),data=MASIbefore,REML=FALSE);summary(MASIb.act.AG)
+MASIb.act.rs.AG <- lmer(mood ~ Age+Sex+TotalStepslog + (1+TotalStepslog|userid),data=MASIbefore,REML=FALSE);summary(MASIb.act.rs.AG)
+MASIb.sleepact.AG <- lmer(mood ~ Age+Sex+TotalStepslog + TotalhrAsleep + (1|userid),data=MASIbefore,REML=FALSE);summary(MASIb.sleepact.AG)
+MASIb.sleepact.rs.AG <- lmer(mood ~ Age+Sex+TotalStepslog + TotalhrAsleep + (1+TotalStepslog|userid),data=MASIbefore,REML=FALSE);summary(MASIb.sleepact.rs.AG)
+MASIb.sleepact.inter.AG <- lmer(mood ~ Age+Sex+TotalStepslog * TotalhrAsleep + (1|userid),data=MASIbefore,REML=FALSE);summary(MASIb.sleepact.inter.AG)
+MASIb.sleepact.inter.rs.AG <- lmer(mood ~ Age+Sex+TotalStepslog * TotalhrAsleep + (1+TotalStepslog|userid),data=MASIbefore,REML=FALSE);summary(MASIb.sleepact.inter.rs.AG)
+anova(MASIb.sleep.AG,MASIb.sleepact.AG)
+anova(MASIb.act.AG,MASIb.sleepact.AG)
+anova(MASIb.null.AG,MASIb.sleepact.AG,MASIb.sleepact.inter.AG)
 
 MASIa.null <- lmer(mood ~ (1|userid),data=MASIafter,REML=FALSE)
 MASIa.sleep <- lmer(mood ~ TotalhrAsleep + (1|userid),data=MASIafter, REML=FALSE );summary(MASIa.sleep)
@@ -764,11 +785,22 @@ MASIa.act <- lmer(mood ~ TotalStepslog + (1|userid),data=MASIafter,REML=FALSE);s
 MASIa.act.rs <- lmer(mood ~ TotalStepslog + (1+TotalStepslog|userid),data=MASIafter,REML=FALSE);summary(MASIa.act.rs)
 MASIa.sleepact <- lmer(mood ~ TotalStepslog + TotalhrAsleep + (1|userid),data=MASIafter,REML=FALSE);summary(MASIa.sleepact)
 MASIa.sleepact.inter <- lmer(mood ~ TotalStepslog * TotalhrAsleep + (1|userid),data=MASIafter,REML=FALSE);summary(MASIa.sleepact.inter)
-anova(MASIa.null,MASIa.sleep)
-anova(MASIa.null,MASIa.act)
+anova(MASIa.sleep,MASIa.sleepact)
+anova(MASIa.act,MASIa.sleepact)
 anova(MASIa.null,MASIa.sleepact,MASIa.sleepact.inter)
 anova(MASIa.sleep,MASIa.sleep.rs)
 anova(MASIa.act,MASIa.act.rs)
+
+MASIa.null.AG <- lmer(mood ~ Age+Sex+(1|userid),data=MASIafter,REML=FALSE);summary(MASIa.null.AG)
+MASIa.sleep.AG <- lmer(mood ~ Age+Sex+TotalhrAsleep+ (1|userid),data=MASIafter, REML=FALSE );summary(MASIa.sleep.AG)
+MASIa.sleep.rs.AG <- lmer(mood ~ Age+Sex+TotalhrAsleep + (1+TotalhrAsleep|userid),data=MASIafter,REML=FALSE);summary(MASIa.sleep.rs.AG)
+MASIa.act.AG <- lmer(mood ~ Age+Sex+TotalStepslog + (1|userid),data=MASIafter,REML=FALSE);summary(MASIa.act.AG)
+MASIa.act.rs.AG <- lmer(mood ~ Age+Sex+TotalStepslog + (1+TotalStepslog|userid),data=MASIafter,REML=FALSE);summary(MASIa.act.rs.AG)
+MASIa.sleepact.AG <- lmer(mood ~ Age+Sex+TotalStepslog + TotalhrAsleep + (1|userid),data=MASIafter,REML=FALSE);summary(MASIa.sleepact.AG)
+MASIa.sleepact.inter.AG <- lmer(mood ~ Age+Sex+TotalStepslog * TotalhrAsleep + (1|userid),data=MASIafter,REML=FALSE);summary(MASIa.sleepact.inter.AG)
+anova(MASIa.sleep.AG,MASIa.sleepact.AG)
+anova(MASIa.act.AG,MASIa.sleepact.AG)
+anova(MASIa.null.AG,MASIa.sleepact.AG,MASIa.sleepact.inter.AG)
 
 MASI.ba.mood <- lmer(mood ~ AfterIntern + (1|userid),data=MoodActSleepIntern,REML=FALSE);summary(MASI.ba.mood)
 MASI.ba.act <- lmer(TotalStepslog ~ AfterIntern + (1|userid),data=MoodActSleepIntern,REML=FALSE);summary(MASI.ba.act)
@@ -796,26 +828,64 @@ test=MoodSleepfull[which(MoodSleepfull$userid=="110000"),]
 ccf(test$mood,test$TotalTimeInBed,lag.max=7,na.action=na.pass,plot=TRUE)
 ccf(test$mood,test$TotalMinutesAsleep,na.action=na.pass,lag.max=7,plot=TRUE)
 ccf(test$mood,test$Ratio,lag.max=7,na.action=na.pass,plot=TRUE)
+#### time lag mixed models ####
 MoodSleepProcess=function(x){
+  x=x[which(x$TotalMinutesAsleep!=0 & x$TotalTimeInBed!=0),]
+  x=x[which(!is.na(x$mood)),]
   x$userid=as.factor(x$userid)
   x$TotalhrAsleep=x$TotalMinutesAsleep/60
   x$Ratio=x$TotalMinutesAsleep / x$TotalTimeInBed
   return(x)
 }
-#### time lag mixed models ####
 # Sleep @ day X ~ Mood @ day X-2
 MoodSleeptdby = merge(Mood,Sleep,by.x=c("userid","Date_mood"),by.y=c("Id","tdby"),sort=TRUE);nrow(MoodSleeptdby)
 MoodSleeptdby = MoodSleepProcess(MoodSleeptdby)
 MoodSleeptdby.null=lmer(mood ~ (1|userid),data=MoodSleeptdby,REML=FALSE)
+MoodSleeptdby.Mixed1=lmer(mood ~ TotalhrAsleep + (1|userid),data=MoodSleeptdby,REML=FALSE);summary(MoodSleeptdby.Mixed1)
+MoodSleeptdby.Mixed2=lmer(mood ~ Ratio + (1|userid),data=MoodSleeptdby,REML=FALSE);summary(MoodSleeptdby.Mixed2)
+MoodSleeptdby.Mixed3=lmer(mood ~ TotalhrAsleep + Ratio + (1|userid),data=MoodSleeptdby,REML=FALSE);summary(MoodSleeptdby.Mixed3)
+anova(MoodSleeptdby.null,MoodSleeptdby.Mixed1,MoodSleeptdby.Mixed3)
+anova(MoodSleeptdby.null,MoodSleeptdby.Mixed2)
+SleepMoodtdby.null1=lmer(TotalhrAsleep ~ (1|userid),data=MoodSleeptdby,REML=FALSE)
+SleepMoodtdby.null2=lmer(Ratio ~ (1|userid),data=MoodSleeptdby,REML=FALSE)
+SleepMoodtdby.Mixed1=lmer(TotalhrAsleep ~ mood + (1|userid),data=MoodSleeptdby,REML=FALSE);summary(SleepMoodtdby.Mixed1)
+SleepMoodtdby.Mixed2=lmer(Ratio ~ mood + (1|userid),data=MoodSleeptdby,REML=FALSE);summary(SleepMoodtdby.Mixed2)
+anova(SleepMoodtdby.null1,SleepMoodtdby.Mixed1)
+anova(SleepMoodtdby.null2,SleepMoodtdby.Mixed2)
 # Sleep @ day X ~ Mood @ day X-1
 MoodSleepyd = merge(Mood,Sleep,by.x=c("userid","Date_mood"),by.y=c("Id","Yesterday"),sort=TRUE);nrow(MoodSleepyd)
 MoodSleepyd = MoodSleepProcess(MoodSleepyd)
+MoodSleepyd.null=lmer(mood ~ (1|userid),data=MoodSleepyd,REML=FALSE)
+MoodSleepyd.Mixed1=lmer(mood ~ TotalhrAsleep + (1|userid),data=MoodSleepyd,REML=FALSE);summary(MoodSleepyd.Mixed1)
+MoodSleepyd.Mixed2=lmer(mood ~ Ratio + (1|userid),data=MoodSleepyd,REML=FALSE);summary(MoodSleepyd.Mixed2)
+MoodSleepyd.Mixed3=lmer(mood ~ TotalhrAsleep + Ratio + (1|userid),data=MoodSleepyd,REML=FALSE);summary(MoodSleepyd.Mixed3)
+anova(MoodSleepyd.null,MoodSleepyd.Mixed1,MoodSleepyd.Mixed3)
+anova(MoodSleepyd.null,MoodSleepyd.Mixed2)
+SleepMoodyd.null1=lmer(TotalhrAsleep ~ (1|userid),data=MoodSleepyd,REML=FALSE)
+SleepMoodyd.null2=lmer(Ratio ~ (1|userid),data=MoodSleepyd,REML=FALSE)
+SleepMoodyd.Mixed1=lmer(TotalhrAsleep ~ mood + (1|userid),data=MoodSleepyd,REML=FALSE);summary(SleepMoodyd.Mixed1)
+SleepMoodyd.Mixed2=lmer(Ratio ~ mood + (1|userid),data=MoodSleepyd,REML=FALSE);summary(SleepMoodyd.Mixed2)
+anova(SleepMoodyd.null1,SleepMoodyd.Mixed1)
+anova(SleepMoodyd.null2,SleepMoodyd.Mixed2)
 # Sleep @ day X ~ Mood @ day X+1
 MoodSleeptm = merge(Mood,Sleep,by.x=c("userid","Date_mood"),by.y=c("Id","Tomorrow"),sort=TRUE);nrow(MoodSleeptm)
 MoodSleeptm = MoodSleepProcess(MoodSleeptm)
+MoodSleeptm.null=lmer(mood ~ (1|userid),data=MoodSleeptm,REML=FALSE)
+MoodSleeptm.Mixed1=lmer(mood ~ TotalhrAsleep + (1|userid),data=MoodSleeptm,REML=FALSE);summary(MoodSleeptm.Mixed1)
+MoodSleeptm.Mixed2=lmer(mood ~ Ratio + (1|userid),data=MoodSleeptm,REML=FALSE);summary(MoodSleeptm.Mixed2)
+MoodSleeptm.Mixed3=lmer(mood ~ TotalhrAsleep + Ratio + (1|userid),data=MoodSleeptm,REML=FALSE);summary(MoodSleeptm.Mixed3)
+anova(MoodSleeptm.null,MoodSleeptm.Mixed1,MoodSleeptm.Mixed3)
+anova(MoodSleeptm.null,MoodSleeptm.Mixed2)
 # Sleep @ day X ~ Mood @ day X+2
 MoodSleeptdat = merge(Mood,Sleep,by.x=c("userid","Date_mood"),by.y=c("Id","tdat"),sort=TRUE);nrow(MoodSleeptdat)
 MoodSleeptdat = MoodSleepProcess(MoodSleeptdat)
+MoodSleeptdat.null=lmer(mood ~ (1|userid),data=MoodSleeptdat,REML=FALSE)
+MoodSleeptdat.Mixed1=lmer(mood ~ TotalhrAsleep + (1|userid),data=MoodSleeptdat,REML=FALSE);summary(MoodSleeptdat.Mixed1)
+MoodSleeptdat.Mixed2=lmer(mood ~ Ratio + (1|userid),data=MoodSleeptdat,REML=FALSE);summary(MoodSleeptdat.Mixed2)
+MoodSleeptdat.Mixed3=lmer(mood ~ TotalhrAsleep + Ratio + (1|userid),data=MoodSleeptdat,REML=FALSE);summary(MoodSleeptdat.Mixed3)
+anova(MoodSleeptdat.null,MoodSleeptdat.Mixed1,MoodSleeptdat.Mixed3)
+anova(MoodSleeptdat.null,MoodSleeptdat.Mixed2)
+
 
 ####################################### Mood/Activity/Sleep summary ####################################### 
 Summary.MSA = merge(Summary.activity,Summary.sleep,by="id",all.x=TRUE)
@@ -823,7 +893,7 @@ Summary.MSA = merge(Summary.MSA,Summary.mood,by="id",all.x=TRUE)
 MSA.corr=rcorr(as.matrix(Summary.MSA[c("meanSteps","meancalories","meandistance","meanveryactmin","meanfairactmin","meanlightactmin","meansedmin","meanMinAsleep","meanMinInbed","meanAsleepInbedratio","meanMood")]))
 write.table(data.frame(MSA.corr$P),"work/Fitbit/FBscripts/tmp.csv",sep=",")
 ####################################### PHQ #######################################
-PHQ=read.csv("Z:././././Data Analysis/Yu Fang/data/data14all_15BLq1q2_PHQ_Sleep_01292016.csv")
+PHQ=read.csv("Z:././././Data Analysis/Yu Fang/data/data14all_15BLq1q2_PHQ_Sleep_02162016.csv")
 
 PHQ.BS1.2014=read.csv('z:/Data Analysis/Yu Fang/data/2014BioShort1.csv')
 PHQ.BS2.2014=read.csv('z:/Data Analysis/Yu Fang/data/2014BioShort2.csv')
