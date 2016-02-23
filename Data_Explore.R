@@ -885,8 +885,31 @@ MoodSleeptdat.Mixed2=lmer(mood ~ Ratio + (1|userid),data=MoodSleeptdat,REML=FALS
 MoodSleeptdat.Mixed3=lmer(mood ~ TotalhrAsleep + Ratio + (1|userid),data=MoodSleeptdat,REML=FALSE);summary(MoodSleeptdat.Mixed3)
 anova(MoodSleeptdat.null,MoodSleeptdat.Mixed1,MoodSleeptdat.Mixed3)
 anova(MoodSleeptdat.null,MoodSleeptdat.Mixed2)
+# Sleep @ day X ~ Mood @ day X
+MoodSleeptoday = merge(Mood,Sleep,by.x=c("userid","Date_mood"),by.y=c("Id","SleepDay"),sort=TRUE);nrow(MoodSleeptoday)
+MoodSleeptoday = MoodSleepProcess(MoodSleeptoday)
+MoodSleeptoday.null=lmer(mood ~ (1|userid),data=MoodSleeptoday,REML=FALSE)
+MoodSleeptoday.Mixed1=lmer(mood ~ TotalhrAsleep + (1|userid),data=MoodSleeptoday,REML=FALSE);summary(MoodSleeptoday.Mixed1)
+MoodSleeptoday.Mixed2=lmer(mood ~ Ratio + (1|userid),data=MoodSleeptoday,REML=FALSE);summary(MoodSleeptoday.Mixed2)
+MoodSleeptoday.Mixed3=lmer(mood ~ TotalhrAsleep + Ratio + (1|userid),data=MoodSleeptoday,REML=FALSE);summary(MoodSleeptoday.Mixed3)
+anova(MoodSleeptoday.null,MoodSleeptoday.Mixed1,MoodSleeptoday.Mixed3)
+anova(MoodSleeptoday.null,MoodSleeptoday.Mixed2)
 
+# Compare different day lag models
+keepcols=c("userid","Date_mood","mood","TotalhrAsleep","Ratio")
+mergecols=c("userid","Date_mood","mood")
+MStodayyd=merge(MoodSleeptoday[keepcols],MoodSleepyd[keepcols],by=mergecols)
+MStodayydtm=merge(MStodayyd,MoodSleeptm[keepcols],by=mergecols)
+names(MStodayydtm)[8:9]=c("TotalhrAsleep.z","ratio.z")
+MStdydtmtdby=merge(MStodayydtm,MoodSleeptdby[keepcols],by=mergecols)
+names(MStdydtmtdby)[10:11]=c("TotalhrAsleep.a","ratio.a")
+MStdydtmtdbytdat=merge(MStdydtmtdby,MoodSleeptdat[keepcols],by=mergecols)
 
+mtoday=lmer(mood ~ TotalhrAsleep.x + Ratio.x + (1|userid),data=MStdydtmtdbytdat,REML=FALSE);summary(mtoday)
+myd=lmer(mood ~ TotalhrAsleep.y + Ratio.y + (1|userid),data=MStdydtmtdbytdat,REML=FALSE);summary(myd)
+mtm=lmer(mood ~ TotalhrAsleep.z + ratio.z + (1|userid),data=MStdydtmtdbytdat,REML=FALSE);summary(mtm)
+mtdby=lmer(mood ~ TotalhrAsleep.a + ratio.a + (1|userid),data=MStdydtmtdbytdat,REML=FALSE);summary(mtdby)
+mtdat=lmer(mood ~ TotalhrAsleep + Ratio + (1|userid),data=MStdydtmtdbytdat,REML=FALSE);summary(mtdat)
 ####################################### Mood/Activity/Sleep summary ####################################### 
 Summary.MSA = merge(Summary.activity,Summary.sleep,by="id",all.x=TRUE)
 Summary.MSA = merge(Summary.MSA,Summary.mood,by="id",all.x=TRUE)
@@ -961,7 +984,7 @@ PHQSleep$surveyDate1<-as.Date(as.character(PHQSleep$surveyDate1),"%d%b%y")
 PHQSleep$surveyDate2<-as.Date(as.character(PHQSleep$surveyDate2),"%d%b%y")
 #### sleep on PHQ date 1 ####
 SleepPHQ1=merge(PHQSleep,Sleep,by.x=c("UserID","surveyDate1"),by.y=c("Id","SleepDay"))
-SleepPHQ1=SleepPHQ1[c("UserID","surveyDate1","Year","sleep24h1","sleepAve1","interest1","down1","asleep1","tired1","appetite1","failure1","concentr1","activity1","suic1","PHQtot1",
+SleepPHQ1=SleepPHQ1[c("UserID","surveyDate1","Year","Age","Sex","sleep24h1","sleepAve1","interest1","down1","asleep1","tired1","appetite1","failure1","concentr1","activity1","suic1","PHQtot1",
                       "TotalSleepRecords","TotalMinutesAsleep","TotalTimeInBed")]
 SPfactorcols=c("interest1","down1","asleep1","tired1","appetite1","failure1","concentr1","activity1","suic1")
 # way one: factorize the scores (0,1,2,3)
@@ -976,7 +999,6 @@ SleepPHQ1$AvI=SleepPHQ1$TotalMinutesAsleep/SleepPHQ1$TotalTimeInBed
 #### plot SRvFB vs PHQtot
 plot(SleepPHQ1$SRvFB,SleepPHQ1$PHQtot1,type="p",xlab="selfreport/fitbit sleep",ylab="PHQtotal",main="PHQ date1",col="blue",
      pch=20,cex=1.5,cex.lab=1.5,cex.main=2)
-
 #### predict variables: SRvFB, SRvFBbin, TotalHrAsleep, AVI ####
 m1=glm(interest1 ~ AvI, family=binomial(link='logit'),data=SleepPHQ1);summary(m1)
 m2=glm(down1 ~ AvI, family=binomial(link='logit'),data=SleepPHQ1);summary(m2)
@@ -1015,6 +1037,11 @@ sf <- function(y){
 }
 s<-with(SleepPHQ1,summary(as.numeric(as.character(failure1)) ~ SRvFBbin, fun=sf))
 print(s)
+#### Gender difference on Selfreport/Fitbit Ratio ####
+SRvFB_female=SleepPHQ1$SRvFB[which(SleepPHQ1$Sex==2)];mean(SRvFB_female)
+SRvFB_male=SleepPHQ1$SRvFB[which(SleepPHQ1$Sex==1)];mean(SRvFB_male)
+SRvFB_genderdiff.ttest=t.test(SRvFB_female,SRvFB_male,paired=FALSE)
+boxplot(SleepPHQ1$SRvFB ~ SleepPHQ1$Sex,xlab="Gender",ylab="Selfreport/Fitbit Sleep")
 #### Average sleep on the week before PHQ date 1 ####
 Sleepave=merge(Sleep,PHQSleep,by.x="Id",by.y="UserID")
 Sleepave1=Sleepave[which((Sleepave$surveyDate1 - Sleepave$SleepDay >=0) & (Sleepave$surveyDate1-Sleepave$SleepDay<7)),]
@@ -1023,7 +1050,7 @@ subs=unique(Sleepave1$Id)
 nsub=length(subs)
 for (isub in 1:nsub){
   tmp=Sleepave1[which(Sleepave1$Id==subs[isub]),]
-  newtmp=data.frame(id=subs[isub],sleepsr=tmp$sleepAve1[1],
+  newtmp=data.frame(id=subs[isub],sleepsr=tmp$sleepAve1[1],Age=tmp$Age[1],Sex=tmp$Sex[1],
                     sleepfb=mean(tmp$TotalMinutesAsleep/60),sleepsrvfb=tmp$sleepAve1[1]/mean(tmp$TotalMinutesAsleep/60),
                     AvI=mean(tmp$TotalMinutesAsleep/tmp$TotalTimeInBed),
                     PHQtot1=tmp$PHQtot1[1],interest1=tmp$interest1[1],down1=tmp$down1[1],asleep1=tmp$asleep1[1],tired1=tmp$tired1[1],
@@ -1032,10 +1059,8 @@ for (isub in 1:nsub){
   else {out=rbind(out,newtmp)}
 }
 Sleepave1=out
-
 plot(Sleepave1$sleepsrvfb,Sleepave1$PHQtot1,type="p",xlab="selfreport/fitbit sleep",ylab="PHQtotal",main="PHQ date1 past week average",col="blue",
      pch=20,cex=1.5,cex.lab=1.5,cex.main=2)
-
 subs=unique(Sleepave2$Id)
 nsub=length(subs)
 for (isub in 1:nsub){
@@ -1048,13 +1073,11 @@ for (isub in 1:nsub){
   else {out2=rbind(out2,newtmp)}
 }
 Sleepave2=out2
-
 Sleepave1$SRvFBbin=Sleepave1$sleepsrvfb>1
 # way one: factorize the scores (0,1,2,3)
 Sleepave1[SPfactorcols]<-lapply(Sleepave1[SPfactorcols],as.factor)
 # way two: binarize the scores (0,1)
 Sleepave1[SPfactorcols]=ifelse(Sleepave1[SPfactorcols]>0,1,0)
-
 #### predict variables: sleepsrvfb, SRvFBbin, sleepfb, AvI ####
 m1=glm(interest1 ~ AvI, family=binomial(link='logit'),data=Sleepave1);summary(m1)
 m2=glm(down1 ~ AvI, family=binomial(link='logit'),data=Sleepave1);summary(m2);
@@ -1066,7 +1089,6 @@ m7=glm(concentr1 ~ AvI, family=binomial(link='logit'),data=Sleepave1);summary(m7
 m8=glm(activity1 ~ AvI, family=binomial(link='logit'),data=Sleepave1);summary(m8)
 m9=glm(suic1 ~ AvI, family=binomial(link='logit'),data=Sleepave1);summary(m9)  
 m10=lm(PHQtot1 ~ AvI, data=Sleepave1);summary(m10)
-
 m1<-polr(interest1 ~ AvI, data=Sleepave1, Hess=TRUE);ctable=coef(summary(m1));p=pnorm(abs(ctable[,"t value"]),lower.tail=FALSE)*2;print(p);ci=confint(m1);print(ci);
 m2<-polr(down1 ~ AvI, data=Sleepave1, Hess=TRUE);ctable=coef(summary(m2));p=pnorm(abs(ctable[,"t value"]),lower.tail=FALSE)*2;print(p);ci=confint(m2);print(ci);
 m3<-polr(asleep1 ~ AvI, data=Sleepave1, Hess=TRUE);ctable=coef(summary(m3));p=pnorm(abs(ctable[,"t value"]),lower.tail=FALSE)*2;print(p);ci=confint(m3);print(ci)
@@ -1076,13 +1098,17 @@ m6<-polr(failure1 ~ AvI, data=Sleepave1, Hess=TRUE);ctable=coef(summary(m6));p=p
 m7<-polr(concentr1 ~ AvI, data=Sleepave1, Hess=TRUE);ctable=coef(summary(m7));p=pnorm(abs(ctable[,"t value"]),lower.tail=FALSE)*2;print(p);ci=confint(m7);print(ci)
 m8<-polr(activity1 ~ AvI, data=Sleepave1, Hess=TRUE);ctable=coef(summary(m8));p=pnorm(abs(ctable[,"t value"]),lower.tail=FALSE)*2;print(p);ci=confint(m8);print(ci)
 m9<-polr(suic1 ~ AvI, data=Sleepave1, Hess=TRUE);ctable=coef(summary(m9));p=pnorm(abs(ctable[,"t value"]),lower.tail=FALSE)*2;print(p);ci=confint(m9);print(ci)
-
 # t-test on PHQ tot
 pt1=Sleepave1$PHQtot1[which(Sleepave1$sleepsrvfb>1)];pt2=Sleepave1$PHQtot1[which(Sleepave1$sleepsrvfb<1)]
 t.test(pt1,pt2,paired = F)
 # plot
 plot(Sleepave1$sleepfb,Sleepave1$sleepsr,xlab="fitbit sleep average (hr)",ylab="self report sleep average (hr)")
 abline(0,1)
+#### Gender difference on Selfreport/Fitbit Ratio ####
+SRvFB_female=Sleepave1$sleepsrvfb[which(Sleepave1$Sex==2)];mean(SRvFB_female)
+SRvFB_male=Sleepave1$sleepsrvfb[which(Sleepave1$Sex==1)];mean(SRvFB_male)
+t.test(SRvFB_female,SRvFB_male,paired=FALSE)
+boxplot(Sleepave1$sleepsrvfb ~ Sleepave1$Sex,xlab="Gender",ylab="Selfreport/Fitbit Sleep")
 #### Sleep on PHQ date 2 ####
 SleepPHQ2=merge(PHQSleep,Sleep,by.x=c("UserID","surveyDate2"),by.y=c("Id","SleepDay"))
 SleepPHQ2=SleepPHQ2[c("UserID","surveyDate2","Year","sleep24h2","sleepAve2","interest2","down2","asleep2","tired2","appetite2","failure2","concentr2","activity2","suic2","PHQtot2",
@@ -1120,6 +1146,7 @@ m8<-glmer(activity ~ SRvFB + (1|UserID),data=SleepPHQ12,family=binomial,nAGQ=0);
 m9<-glmer(suic ~ SRvFB + (1|UserID),data=SleepPHQ12,family=binomial,nAGQ=0);summary(m9) 
 
 # Average Sleep on the week before PHQ date 2
+
 
 ############ PHQ & Activity ############
 PHQActivity <- PHQ[which(PHQ$UserID %in% Activity$Id),]
@@ -1175,7 +1202,6 @@ m7=glm(concentr1 ~ Calories, family=binomial(link='logit'),data=Activityave1);su
 m8=glm(activity1 ~ Calories, family=binomial(link='logit'),data=Activityave1);summary(m8)
 m9=glm(suic1 ~ Calories, family=binomial(link='logit'),data=Activityave1);summary(m9)
 m10=lm(PHQtot1 ~ Calories, data=Activityave1);summary(m10)
-
 ############ PHQ & Mood ############
 PHQMood <- merge(PHQ, Summary.mood, by.x="UserID",by.y="id")
 m1<-lm(RR ~ PHQtot0, data=PHQMood);summary(m1)
