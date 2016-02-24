@@ -802,15 +802,35 @@ anova(MASIa.sleep.AG,MASIa.sleepact.AG)
 anova(MASIa.act.AG,MASIa.sleepact.AG)
 anova(MASIa.null.AG,MASIa.sleepact.AG,MASIa.sleepact.inter.AG)
 
-MASI.ba.mood <- lmer(mood ~ AfterIntern + (1|userid),data=MoodActSleepIntern,REML=FALSE);summary(MASI.ba.mood)
-MASI.ba.act <- lmer(TotalStepslog ~ AfterIntern + (1|userid),data=MoodActSleepIntern,REML=FALSE);summary(MASI.ba.act)
-MASI.ba.sleep <- lmer(TotalhrAsleep ~ AfterIntern + (1|userid),data=MoodActSleepIntern,REML=FALSE);summary(MASI.ba.sleep)
+MoodActSleepIntern <- MoodActSleepIntern[which(!is.na(MoodActSleepIntern$Sex)),]
 MASI.ba.mood.null <- lmer(mood ~ (1|userid),data=MoodActSleepIntern,REML=FALSE);
 MASI.ba.act.null <- lmer(TotalStepslog ~ (1|userid),data=MoodActSleepIntern,REML=FALSE);
 MASI.ba.sleep.null <- lmer(TotalhrAsleep ~ (1|userid),data=MoodActSleepIntern,REML=FALSE);
-anova(MASI.ba.mood.null,MASI.ba.mood)
-anova(MASI.ba.act.null,MASI.ba.act)
-anova(MASI.ba.sleep.null,MASI.ba.sleep)
+MASI.ba.sleepeff.null <- lmer(Ratio ~ (1|userid),data=MoodActSleepIntern,REML=FALSE);
+MASI.ba.mood <- lmer(mood ~ AfterIntern + (1|userid),data=MoodActSleepIntern,REML=FALSE);summary(MASI.ba.mood)
+MASI.ba.act <- lmer(TotalStepslog ~ AfterIntern + (1|userid),data=MoodActSleepIntern,REML=FALSE);summary(MASI.ba.act)
+MASI.ba.sleep <- lmer(TotalhrAsleep ~ AfterIntern + (1|userid),data=MoodActSleepIntern,REML=FALSE);summary(MASI.ba.sleep)
+MASI.ba.sleepeff <- lmer(Ratio ~ AfterIntern + (1|userid),data=MoodActSleepIntern,REML=FALSE);summary(MASI.ba.sleepeff)
+MASI.gender.mood <- lmer(mood ~ Sex + (1|userid),data=MoodActSleepIntern,REML=FALSE);summary(MASI.gender.mood)
+MASI.gender.act <- lmer(TotalStepslog ~ Sex + (1|userid),data=MoodActSleepIntern,REML=FALSE);summary(MASI.gender.act)
+MASI.gender.sleep <- lmer(TotalhrAsleep ~ Sex + (1|userid),data=MoodActSleepIntern,REML=FALSE);summary(MASI.gender.sleep)
+MASI.gender.sleepeff <- lmer(Ratio ~ Sex + (1|userid),data=MoodActSleepIntern,REML=FALSE);summary(MASI.gender.sleepeff)
+MASI.gba.mood <- lmer(mood ~ AfterIntern + Sex + (1|userid),data=MoodActSleepIntern,REML=FALSE);summary(MASI.gba.mood)
+MASI.gba.act <- lmer(TotalStepslog ~ AfterIntern + Sex + (1|userid),data=MoodActSleepIntern,REML=FALSE);summary(MASI.gba.act)
+MASI.gba.sleep <- lmer(TotalhrAsleep ~ AfterIntern + Sex + (1|userid),data=MoodActSleepIntern,REML=FALSE);summary(MASI.gba.sleep)
+MASI.gba.sleepeff <- lmer(Ratio ~ AfterIntern + Sex + (1|userid),data=MoodActSleepIntern,REML=FALSE);summary(MASI.gba.sleepeff)
+MASI.gbai.mood <- lmer(mood ~ AfterIntern * Sex + (1|userid),data=MoodActSleepIntern,REML=FALSE);summary(MASI.gbai.mood)
+MASI.gbai.act <- lmer(TotalStepslog ~ AfterIntern * Sex + (1|userid),data=MoodActSleepIntern,REML=FALSE);summary(MASI.gbai.act)
+MASI.gbai.sleep <- lmer(TotalhrAsleep ~ AfterIntern * Sex + (1|userid),data=MoodActSleepIntern,REML=FALSE);summary(MASI.gbai.sleep)
+MASI.gbai.sleepeff <- lmer(Ratio ~ AfterIntern * Sex + (1|userid),data=MoodActSleepIntern,REML=FALSE);summary(MASI.gbai.sleepeff)
+anova(MASI.ba.mood.null,MASI.ba.mood,MASI.gba.mood,MASI.gbai.mood)
+anova(MASI.ba.act.null,MASI.ba.act,MASI.gba.act,MASI.gbai.act)
+anova(MASI.ba.sleep.null,MASI.ba.sleep,MASI.gba.sleep,MASI.gbai.sleep)
+anova(MASI.ba.sleepeff.null,MASI.ba.sleepeff,MASI.gba.sleepeff,MASI.gbai.sleepeff)
+anova(MASI.ba.mood.null,MASI.gender.mood)
+anova(MASI.ba.act.null,MASI.gender.act)
+anova(MASI.ba.sleep.null,MASI.gender.sleep)
+anova(MASI.ba.sleepeff.null,MASI.gender.sleepeff)
 ######## Time lag association ########
 Mood<-rbind(Mood2014,Mood2015)
 Sleep<-rbind(Sleep2014,Sleep2015)
@@ -1205,4 +1225,105 @@ m10=lm(PHQtot1 ~ Calories, data=Activityave1);summary(m10)
 ############ PHQ & Mood ############
 PHQMood <- merge(PHQ, Summary.mood, by.x="UserID",by.y="id")
 m1<-lm(RR ~ PHQtot0, data=PHQMood);summary(m1)
+
+############ compare personal average Mood/Act/Sleep ~ Internship & Gender ############
+basicpheno=PHQ[c("UserID","Age","Sex")]
+library(reshape2);
+#### Mood ####
+Summary.mood.wgender=merge(Summary.mood,basicpheno,by.x="id",by.y="UserID")
+Summary.mood.wgender=Summary.mood.wgender[c("id","meanMood","meanMood.pre","meanMood.post","Age","Sex","dmeanmood")]
+nrow(Summary.mood);nrow(Summary.mood.wgender)
+##boxplots
+boxplot(meanMood~Sex,Summary.mood.wgender,xlab="Gender",ylab="meanMood")
+boxplot(dmeanmood~Sex,Summary.mood.wgender,xlab="Gender",ylab="dmeanMood")
+Summary.mood.wgender.reshape=melt(Summary.mood.wgender[c("meanMood.pre","meanMood.post","Sex")],id.var="Sex")
+Summary.mood.wgender.reshapeplot=Summary.mood.wgender.reshape[which(!is.na(Summary.mood.wgender.reshape$Sex)),]
+Summary.mood.wgender.reshapeplot$value=as.numeric(Summary.mood.wgender.reshapeplot$value)
+boxplot(value ~ Sex*variable,Summary.mood.wgender.reshapeplot)
+##ttest
+meanmood.f=Summary.mood.wgender$meanMood[which(Summary.mood.wgender$Sex==2)]
+meanmood.m=Summary.mood.wgender$meanMood[which(Summary.mood.wgender$Sex==1)]
+t.test(meanmood.f,meanmood.m,paired=F)
+meanmood.pre.f=Summary.mood.wgender$meanMood.pre[which(Summary.mood.wgender$Sex==2)]
+meanmood.pre.m=Summary.mood.wgender$meanMood.pre[which(Summary.mood.wgender$Sex==1)]
+t.test(meanmood.pre.f,meanmood.pre.m,paired=F)
+meanmood.post.f=Summary.mood.wgender$meanMood.post[which(Summary.mood.wgender$Sex==2)]
+meanmood.post.m=Summary.mood.wgender$meanMood.post[which(Summary.mood.wgender$Sex==1)]
+t.test(meanmood.post.f,meanmood.post.m,paired=F)
+dmeanmood.f=Summary.mood.wgender$dmeanmood[which(Summary.mood.wgender$Sex==2)]
+dmeanmood.m=Summary.mood.wgender$dmeanmood[which(Summary.mood.wgender$Sex==1)]
+t.test(dmeanmood.f,dmeanmood.m,paired=F)
+#### Activity ####
+Summary.activity.gender=merge(Summary.activity,basicpheno,by.x="id",by.y="UserID")
+Summary.activity.gender=Summary.activity.wgender[c("id","meanSteps","meanSteps.pre","meanSteps.post","Age","Sex")]
+nrow(Summary.activity);nrow(Summary.activity.gender)
+Summary.activity.gender$dmeanSteps=Summary.activity.gender$meanSteps.post-Summary.activity.gender$meanSteps.pre
+##boxplots
+boxplot(meanSteps~Sex,Summary.activity.gender,xlab="Gender",ylab="meanSteps")
+boxplot(dmeanSteps~Sex,Summary.activity.gender,xlab="Gender",ylab="dmeanSteps")
+Summary.activity.gender.reshape=melt(Summary.activity.gender[c("meanSteps.pre","meanSteps.post","Sex")],id.var="Sex")
+Summary.activity.gender.reshapeplot=Summary.activity.gender.reshape[which(!is.na(Summary.activity.gender.reshape$Sex)),]
+Summary.activity.gender.reshapeplot$value=as.numeric(Summary.activity.gender.reshapeplot$value)
+boxplot(value ~ Sex*variable,Summary.activity.gender.reshapeplot)
+##ttest
+Summary.activity.gender<-Summary.activity.gender[which(Summary.activity.gender$id!="93033"),]
+meanSteps.f=Summary.activity.gender$meanSteps[which(Summary.activity.gender$Sex==2)]
+meanSteps.m=Summary.activity.gender$meanSteps[which(Summary.activity.gender$Sex==1)]
+t.test(meanSteps.f,meanSteps.m,paired=F)
+meanSteps.pre.f=Summary.activity.gender$meanSteps.pre[which(Summary.activity.gender$Sex==2)]
+meanSteps.pre.m=Summary.activity.gender$meanSteps.pre[which(Summary.activity.gender$Sex==1)]
+t.test(meanSteps.pre.f,meanSteps.pre.m,paired=F)
+meanSteps.post.f=Summary.activity.gender$meanSteps.post[which(Summary.activity.gender$Sex==2)]
+meanSteps.post.m=Summary.activity.gender$meanSteps.post[which(Summary.activity.gender$Sex==1)]
+t.test(meanSteps.post.f,meanSteps.post.m,paired=F)
+dmeanSteps.f=Summary.activity.gender$dmeanSteps[which(Summary.activity.gender$Sex==2)]
+dmeanSteps.m=Summary.activity.gender$dmeanSteps[which(Summary.activity.gender$Sex==1)]
+t.test(dmeanSteps.f,dmeanSteps.m,paired=F)
+#### Sleep ####
+Summary.sleep.gender=merge(Summary.sleep,basicpheno,by.x="id",by.y="UserID")
+Summary.sleep.gender=Summary.sleep.gender[c("id","meanMinAsleep","meanMinAsleep.pre","meanMinAsleep.post",
+                                              "meanAsleepInbedratio","meanAsleepInbedratio.pre","meanAsleepInbedratio.post","Age","Sex")]
+nrow(Summary.sleep);nrow(Summary.sleep.gender)
+Summary.sleep.gender$dmeanMinAsleep=Summary.sleep.gender$meanMinAsleep.post-Summary.sleep.gender$meanMinAsleep.pre
+Summary.sleep.gender$dEff=Summary.sleep.gender$meanAsleepInbedratio.post-Summary.sleep.gender$meanAsleepInbedratio.pre
+##boxplots
+boxplot(meanMinAsleep~Sex,Summary.sleep.gender,xlab="Gender",ylab="meanMinAsleep")
+boxplot(dmeanMinAsleep~Sex,Summary.sleep.gender,xlab="Gender",ylab="dmeanMinAsleep")
+boxplot(meanAsleepInbedratio~Sex,Summary.sleep.gender,xlab="Gender",ylab="meanAsleepInbedratio")
+boxplot(dEff~Sex,Summary.sleep.gender,xlab="Gender",ylab="dmeanAsleepInbedratio")
+Summary.sleep.gender.reshape=melt(Summary.sleep.gender[c("meanMinAsleep.pre","meanMinAsleep.post","Sex")],id.var="Sex")
+Summary.sleep.gender.reshapeplot=Summary.sleep.gender.reshape[which(!is.na(Summary.sleep.gender.reshape$Sex)),]
+Summary.sleep.gender.reshapeplot$value=as.numeric(Summary.sleep.gender.reshapeplot$value)
+boxplot(value ~ Sex*variable,Summary.sleep.gender.reshapeplot)
+Summary.sleep.gender.reshape=melt(Summary.sleep.gender[c("meanAsleepInbedratio.pre","meanAsleepInbedratio.post","Sex")],id.var="Sex")
+Summary.sleep.gender.reshapeplot=Summary.sleep.gender.reshape[which(!is.na(Summary.sleep.gender.reshape$Sex)),]
+Summary.sleep.gender.reshapeplot$value=as.numeric(Summary.sleep.gender.reshapeplot$value)
+boxplot(value ~ Sex*variable,Summary.sleep.gender.reshapeplot)
+##ttest
+#asleepmin
+meanMinAsleep.f=Summary.sleep.gender$meanMinAsleep[which(Summary.sleep.gender$Sex==2)]
+meanMinAsleep.m=Summary.sleep.gender$meanMinAsleep[which(Summary.sleep.gender$Sex==1)]
+t.test(meanMinAsleep.f,meanMinAsleep.m,paired=F)
+meanMinAsleep.pre.f=Summary.sleep.gender$meanMinAsleep.pre[which(Summary.sleep.gender$Sex==2)]
+meanMinAsleep.pre.m=Summary.sleep.gender$meanMinAsleep.pre[which(Summary.sleep.gender$Sex==1)]
+t.test(meanMinAsleep.pre.f,meanMinAsleep.pre.m,paired=F)
+meanMinAsleep.post.f=Summary.sleep.gender$meanMinAsleep.post[which(Summary.sleep.gender$Sex==2)]
+meanMinAsleep.post.m=Summary.sleep.gender$meanMinAsleep.post[which(Summary.sleep.gender$Sex==1)]
+t.test(meanMinAsleep.post.f,meanMinAsleep.post.m,paired=F)
+dmeanMinAsleep.f=Summary.sleep.gender$dmeanMinAsleep[which(Summary.sleep.gender$Sex==2)]
+dmeanMinAsleep.m=Summary.sleep.gender$dmeanMinAsleep[which(Summary.sleep.gender$Sex==1)]
+t.test(dmeanMinAsleep.f,dmeanMinAsleep.m,paired=F)
+#efficiency
+meanAsleepInbedratio.f=Summary.sleep.gender$meanAsleepInbedratio[which(Summary.sleep.gender$Sex==2)]
+meanAsleepInbedratio.m=Summary.sleep.gender$meanAsleepInbedratio[which(Summary.sleep.gender$Sex==1)]
+t.test(meanAsleepInbedratio.f,meanAsleepInbedratio.m,paired=F)
+meanAsleepInbedratio.pre.f=Summary.sleep.gender$meanAsleepInbedratio.pre[which(Summary.sleep.gender$Sex==2)]
+meanAsleepInbedratio.pre.m=Summary.sleep.gender$meanAsleepInbedratio.pre[which(Summary.sleep.gender$Sex==1)]
+t.test(meanAsleepInbedratio.pre.f,meanAsleepInbedratio.pre.m,paired=F)
+meanAsleepInbedratio.post.f=Summary.sleep.gender$meanAsleepInbedratio.post[which(Summary.sleep.gender$Sex==2)]
+meanAsleepInbedratio.post.m=Summary.sleep.gender$meanAsleepInbedratio.post[which(Summary.sleep.gender$Sex==1)]
+t.test(meanAsleepInbedratio.post.f,meanAsleepInbedratio.post.m,paired=F)
+dEff.f=Summary.sleep.gender$dEff[which(Summary.sleep.gender$Sex==2)]
+dEff.m=Summary.sleep.gender$dEff[which(Summary.sleep.gender$Sex==1)]
+t.test(dEff.f,dEff.m,paired=F)
 
