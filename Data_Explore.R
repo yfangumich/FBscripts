@@ -19,6 +19,7 @@ library("gtools")
 # multinomial logistic regression
 library("nnet") 
 library("mlogit")
+library("funreg")
 ####################################### Functions #######################################
 ## Sleep
 SleepSummary=function(dayfile,subj,allcols,InternStart){
@@ -148,6 +149,7 @@ StartDate2015=read.csv('Z:./././././Data Analysis/Yu Fang/data/2015BioShort1.csv
 StartDate2014=StartDate2014[c("USERID","StartDate")]
 StartDate2015=StartDate2015[c("USERID","StartDate")];StartDate2015$USERID=as.character(StartDate2015$USERID)
 StartDates=rbind(StartDate2014,StartDate2015)
+StartDates$StartDate=as.Date(StartDates$StartDate,"%m/%d/%Y")
 ####################################### Sleep #######################################
 # day sleep 2014
 Sleep2014=read.csv('work/Fitbit/2014_Cohort_all//sleepDay_merged.csv')
@@ -161,6 +163,46 @@ sleep.SubjIDs.2015=unique(Sleep2015$Id)
 Sleep=rbind(Sleep2014,Sleep2015)
 Sleep=Sleep[which(Sleep$TotalMinutesAsleep!=0 & Sleep$TotalTimeInBed!=0),]
 Sleep.subjIDs=unique(Sleep$Id)
+Sleep=merge(Sleep,StartDates,by.x="Id",by.y="USERID",all.x=TRUE)
+Sleep$day=as.numeric(Sleep$SleepDay-Sleep$StartDate)
+Sleep$TotalHrAsleep=Sleep$TotalMinutesAsleep / 60
+Sleep$Efficiency=Sleep$TotalMinutesAsleep / Sleep$TotalTimeInBed
+###### Plot Sleep as a function of time ######
+SleepDay=aggregate(Efficiency~day,data=Sleep,mean)
+SleepDaySD=aggregate(Efficiency~day,data=Sleep,sd)
+SleepDaycount=as.data.frame(table(Sleep$day))
+SleepDay=merge(SleepDay,SleepDaySD,by="day")
+SleepDay=merge(SleepDay,SleepDaycount,by.x="day",by.y="Var1")
+names(SleepDay)=c("day","Efficiency","sd","n")
+SleepDay[,"se"]=0
+SleepDay$se[which(!is.na(SleepDay$sd))]=qt(0.975,df=SleepDay$n[which(!is.na(SleepDay$sd))]-1)*
+  SleepDay$sd[which(!is.na(SleepDay$sd))]/sqrt(SleepDay$n[which(!is.na(SleepDay$sd))])
+SleepDay$upper=SleepDay$Efficiency+SleepDay$se
+SleepDay$lower=SleepDay$Efficiency-SleepDay$se
+SleepDay$sd[which(is.na(SleepDay$sd))]=0
+# start plotting
+par(mar=c(5,12,4,4)+0.1)
+plot(SleepDay$day,SleepDay$Efficiency,xlab="Day(0=InternshipStart)",ylab="Sleep Efficiency",col="red",cex.lab=1.5,cex.axis=1.5)
+loess_fit=loess(Efficiency~day,data=SleepDay,span=0.8)
+lines(SleepDay$day,predict(loess_fit),col="blue");abline(v=0)
+loess_fitu=loess(upper~day,data=SleepDay,span=0.8)
+loess_fitl=loess(lower~day,data=SleepDay,span=0.8)
+lines(SleepDay$day,predict(loess_fitu),lty='dashed',col='black')
+lines(SleepDay$day,predict(loess_fitl),lty='dashed',col='black')
+polygon(c(rev(SleepDay$day), SleepDay$day), 
+        c(rev(predict(loess_fitu)),predict(loess_fitl)), 
+        col = adjustcolor('grey80',alpha.f=0.2), border = NA)
+par(new=T)
+with(SleepDay,plot(day,n,xlab="",ylab="",axes=F,type="n"))
+loess_fitn=loess(n~day,data=SleepDay,span=0.8)
+lines(SleepDay$day,predict(loess_fitn),col="black")
+par(new=T)
+with(SleepDay,plot(day,sd,xlab="",ylab="",axes=F,type="n"));axis(side=4)
+mtext(side=4,line=3,"standard deviation")
+loess_fitsd=loess(sd~day,data=SleepDay,span=0.8)
+lines(SleepDay$day,predict(loess_fitsd),col="green")
+legend(70,250,c("mean","sd","nsub"),lty=c(1,1,1),lwd=c(2,2,2),col=c("blue","green","black"))
+# end plotting
 # Summary for each subject
 sleep.charcols=c("id");sleep.datecols=c("start","end")
 sleep.numcols=c("total","valid",
@@ -201,7 +243,46 @@ Activity2014$ActivityDate=as.Date(Activity2014$ActivityDate,'%m/%d/%Y')
 Activity2015$ActivityDate=as.Date(Activity2015$ActivityDate,'%m/%d/%Y')
 Activity=rbind(Activity2014,Activity2015)
 Activity=Activity[which(Activity$TotalSteps!=0),]
+Activity=merge(Activity,StartDates,by.x="Id",by.y="USERID",all.x=TRUE)
+Activity$day=as.numeric(Activity$ActivityDate-Activity$StartDate)
 activity.SubjIDs=unique(Activity$Id)
+###### Plot Activity as a function of time ######
+ActDay=aggregate(TotalSteps~day,data=Activity,mean)
+ActDaySD=aggregate(TotalSteps~day,data=Activity,sd)
+ActDaycount=as.data.frame(table(Activity$day))
+ActDay=merge(ActDay,ActDaySD,by="day")
+ActDay=merge(ActDay,ActDaycount,by.x="day",by.y="Var1")
+names(ActDay)=c("day","TotalSteps","sd","n")
+ActDay[,"se"]=0
+ActDay$se[which(!is.na(ActDay$sd))]=qt(0.975,df=ActDay$n[which(!is.na(ActDay$sd))]-1)*
+  ActDay$sd[which(!is.na(ActDay$sd))]/sqrt(ActDay$n[which(!is.na(ActDay$sd))])
+ActDay$upper=ActDay$TotalSteps+ActDay$se
+ActDay$lower=ActDay$TotalSteps-ActDay$se
+ActDay$sd[which(is.na(ActDay$sd))]=0
+# start plotting
+par(mar=c(5,12,4,4)+0.1)
+plot(ActDay$day,ActDay$TotalSteps,xlab="Day(0=InternshipStart)",ylab="TotalSteps",col="red",cex.lab=1.5,cex.axis=1.5)
+loess_fit=loess(TotalSteps~day,data=ActDay,span=0.8)
+lines(ActDay$day,predict(loess_fit),col="blue")
+abline(v=0)
+loess_fitu=loess(upper~day,data=ActDay,span=0.8)
+loess_fitl=loess(lower~day,data=ActDay,span=0.8)
+lines(ActDay$day,predict(loess_fitu),lty='dashed',col='black')
+lines(ActDay$day,predict(loess_fitl),lty='dashed',col='black')
+polygon(c(rev(ActDay$day), ActDay$day), 
+        c(rev(predict(loess_fitu)),predict(loess_fitl)), 
+        col = adjustcolor('grey80',alpha.f=0.2), border = NA)
+par(new=T)
+with(ActDay,plot(day,n,xlab="",ylab="",axes=F,type="n"))
+loess_fitn=loess(n~day,data=ActDay,span=0.8)
+lines(ActDay$day,predict(loess_fitn),col="black")
+par(new=T)
+with(ActDay,plot(day,sd,xlab="",ylab="",axes=F,type="n"));axis(side=4)
+mtext(side=4,line=3,"standard deviation")
+loess_fitsd=loess(sd~day,data=ActDay,span=0.8)
+lines(ActDay$day,predict(loess_fitsd),col="green")
+legend(70,2000,c("mean","sd","nsub"),lty=c(1,1,1),lwd=c(2,2,2),col=c("blue","green","black"))
+# end plotting
 ## Steps Summary
 activity.charcols=c("id");activity.datecols=c("start","end")
 activity.numcols=c("total","valid","meanSteps","sdSteps","longestSteps","shortestSteps",
@@ -452,13 +533,56 @@ Summary.mood.2014=Summary.mood[which(Summary.mood$end < as.Date("2015-01-01")),]
 mood.model.paired.2014=t.test(Summary.mood.2014$meanMood.pre,Summary.mood.2014$meanMood.post,paired=T)
 Summary.mood.2015=Summary.mood[which(Summary.mood$end > as.Date("2015-01-01")),]
 mood.model.paired.2015=t.test(Summary.mood.2015$meanMood.pre,Summary.mood.2015$meanMood.post,paired=T)
-############## Add gender and age to Mood ##############
-tmpMood=merge(Mood,PHQ[c("UserID","Age","Sex")],by.x="userid",by.y="UserID",all.x=TRUE)
+############## Add Control phenotypes to Mood ##############
+tmpMood=merge(Mood,PHQ[c("UserID","Age","Sex","Ethnicity","Marital","Child")],by.x="userid",by.y="UserID",all.x=TRUE)
 Mood=tmpMood
+############## Add Time stamps ##############
+Mood=merge(Mood,StartDates,by.x="userid",by.y="USERID")
+Mood$day=as.integer(Mood$Date_mood-Mood$StartDate)
+###### Plot mood as a function of time ######
+MoodDay=aggregate(mood~day,data=Mood,mean)
+MoodDaySD=aggregate(mood~day,data=Mood,sd)
+MoodDaycount=as.data.frame(table(Mood$day))
+MoodDay=merge(MoodDay,MoodDaySD,by="day")
+MoodDay=merge(MoodDay,MoodDaycount,by.x="day",by.y="Var1")
+names(MoodDay)=c("day","mood","sd","n")
+MoodDay[,"se"]=0
+MoodDay$se[which(!is.na(MoodDay$sd))]=qt(0.975,df=MoodDay$n[which(!is.na(MoodDay$sd))]-1)*
+  MoodDay$sd[which(!is.na(MoodDay$sd))]/sqrt(MoodDay$n[which(!is.na(MoodDay$sd))])
+MoodDay$sd[which(is.na(MoodDay$sd))]=0
+MoodDay$upper=MoodDay$mood+MoodDay$se
+MoodDay$lower=MoodDay$mood-MoodDay$se
+# start plotting
+par(mar=c(5,12,4,4)+0.1)
+with(MoodDay,plot(day,mood,xlab="Day(0=InternshipStart)",ylab="Mood",col="red",cex.lab=1.5,cex.axis=1.5))
+loess_fit=loess(mood~day,data=MoodDay,span=0.8)
+lines(MoodDay$day,predict(loess_fit),col="blue")
+abline(v=0)
+loess_fitu=loess(upper~day,data=MoodDay,span=0.8)
+loess_fitl=loess(lower~day,data=MoodDay,span=0.8)
+lines(MoodDay$day,predict(loess_fitu),lty='dashed',col='black')
+lines(MoodDay$day,predict(loess_fitl),lty='dashed',col='black')
+polygon(c(rev(MoodDay$day), MoodDay$day), 
+        c(rev(predict(loess_fitu)),predict(loess_fitl)), 
+        col = adjustcolor('grey80',alpha.f=0.2), border = NA)
+par(new=T)
+with(MoodDay,plot(day,n,xlab="",ylab="",axes=F,type="n"))
+loess_fitn=loess(n~day,data=MoodDay,span=0.8)
+lines(MoodDay$day,predict(loess_fitn),col="black")
+par(new=T)
+with(MoodDay,plot(day,sd,xlab="",ylab="",axes=F,type="n"));axis(side=4)
+mtext(side=4,line=3,"standard deviation")
+loess_fitsd=loess(sd~day,data=MoodDay,span=0.8)
+lines(MoodDay$day,predict(loess_fitsd),col="green")
+legend(20,2.9,c("mean","sd","nsub"),lty=c(1,1,1),lwd=c(2,2,2),col=c("blue","green","black"))
+# end plotting
 ###### Mood & Activity ######
 MoodAct=merge(Mood,Activity,by.x=c("userid","Date_mood"),by.y=c("Id","ActivityDate"),sort=TRUE)
 MoodAct2014=MoodAct[which(MoodAct$Date_mood < as.Date("2015-01-01")),]
 MoodAct2015=MoodAct[which(MoodAct$Date_mood > as.Date("2015-01-01")),]
+MoodAct$userid=as.factor(MoodAct$userid)
+MoodAct$TotalStepslog=log10(MoodAct$TotalSteps)
+#### Aggregate to every day ####
 MoodAct.daily=data.frame(Date_mood=as.Date(character(),'%Y-%m-%d'),sample_num=integer(),mood_mean=integer(),mood_sd=double(),
                         step_mean=integer(),step_sd=double(),veryactmin_mean=integer(),veryactmin_sd=double(),
                         fairactmin_mean=integer(),fairactmin_sd=double(),lightactmin_mean=integer(),lightactmin_sd=double(),
@@ -580,6 +704,9 @@ title("Mood vs Calories 2015")
 MoodSleep=merge(Mood,Sleep,by.x=c("userid","Date_mood"),by.y=c("Id","SleepDay"),sort=TRUE)
 MoodSleep=MoodSleep[which(MoodSleep$TotalMinutesAsleep!=0 & !is.na(MoodSleep$mood)),]
 MoodSleep$Ratio=MoodSleep$TotalMinutesAsleep/MoodSleep$TotalTimeInBed
+MoodSleep$userid=as.factor(MoodSleep$userid)
+MoodSleep$TotalhrAsleep=MoodSleep$TotalMinutesAsleep/60
+#### Aggregate to every day ####
 MoodSleep.daily=data.frame(Date_mood=as.Date(character(),'%Y-%m-%d'),sample_num=integer(),mood_mean=integer(),mood_sd=double(),
                              asleep_mean=integer(),asleep_sd=double(),inbed_mean=integer(),inbed_sd=double(),
                              ratio_mean=double(),ratio_sd=double())
@@ -663,9 +790,7 @@ for (isubj in 1:length(unique(MoodSleep$userid))){
 MoodSleepModel=lm(mood~TotalMinutesAsleep,data=MoodSleepAverage)
 summary(MoodSleepModel)
 ######## consider subject as a random factor ########
-# Mood-Sleep
-MoodSleep$userid=as.factor(MoodSleep$userid)
-MoodSleep$TotalhrAsleep=MoodSleep$TotalMinutesAsleep/60
+#### Mood-Sleep ####
 boxplot(mood ~ userid,MoodSleep,xlab="Subject",ylab="Mood")
 boxplot(mood ~ TotalhrAsleepInt,MoodSleep)
 boxplot(mood ~ Sex, MoodSleep,xlab="Gender",ylab="Mood")
@@ -692,8 +817,6 @@ MoodSleep.effmixed2rs=lmer(mood ~ TotalhrAsleep + Ratio + (1+Ratio|userid),data=
 anova(MoodSleep.null,MoodSleep.Mixed,MoodSleep.effmixed2)
 anova(MoodSleep.effmixed2rs.null,MoodSleep.effmixed2rs)
 ##### Mood-Activity ####
-MoodAct$userid=as.factor(MoodAct$userid)
-MoodAct$TotalStepslog=log10(MoodAct$TotalSteps)
 MoodAct.null=lmer(mood ~ (1|userid),data=MoodAct,REML=FALSE)
 MoodAct.Mixed=lmer(mood ~ TotalStepslog + (1|userid),data=MoodAct,REML=FALSE)
 summary(MoodAct.Mixed)
@@ -704,8 +827,13 @@ summary(MoodAct.Mixed.randslope)
 anova(MoodAct.null.randslope,MoodAct.Mixed.randslope)
 rcorr(MoodAct$TotalSteps,MoodAct$SedentaryMinutes)
 #### Mood - Activity & Sleep ####
-MoodActSleep=merge(MoodAct,MoodSleep,by=c("userid","Date_mood","mood","Age","Sex"),all=FALSE)
-#MoodActSleep=merge(MoodAct,MoodSleep,by=c("userid","Date_mood","mood"),all=FALSE)
+mergecols=c("userid","Date_mood","mood","Age","Sex","Ethnicity","Marital","Child","day","StartDate")
+MoodActSleep=merge(MoodAct,MoodSleep,by=mergecols,all=FALSE)
+MoodActSleep=MoodActSleep[which(!is.na(MoodActSleep$Age) & !is.na(MoodActSleep$Sex)),]
+
+MAS.null=lmer(mood ~ (1|userid),data=MoodActSleep,REML=FALSE)
+MAS.full=lmer(mood ~ TotalStepslog + TotalhrAsleep + day + (1+day|userid),data=MoodActSleep,REML=FALSE)
+
 MAS.null=lmer(mood ~ (1|userid),data=MoodActSleep,REML=FALSE)
 MAS.act=lmer(mood ~ TotalStepslog + (1|userid),data=MoodActSleep,REML=FALSE)
 MAS.sleep=lmer(mood ~ TotalhrAsleep + (1|userid),data=MoodActSleep,REML=FALSE)
@@ -950,9 +1078,11 @@ PHQ.BS2.2015=read.csv('z:/Data Analysis/Yu Fang/data/2015BioShort2.csv')
 colnames(PHQ.BS1.2015)=paste(colnames(PHQ.BS1.2015),"BS1",sep="_")
 colnames(PHQ.BS2.2015)=paste(colnames(PHQ.BS2.2015),"BS2",sep="_")
 PHQ.BS.2015=merge(PHQ,PHQ.BS1.2015,by.x="UserID",by.y="USERID_BS1",all.y=TRUE)
-PHQ.BS.2015=merge(PHQ.BS.2015,PHQ.BS2.2015,by.x="USERID",by.y="USERID_BS2",all.y=TRUE)
+PHQ.BS.2015=merge(PHQ.BS.2015,PHQ.BS2.2015,by.x="UserID",by.y="USERID_BS2",all.y=TRUE)
 
-PHQ.datecol1=c("PHQdate0","PHQdate1","PHQdate2","PHQdate3","PHQdate4")
+PHQ.BS=rbind(PHQ.BS.2014,PHQ.BS.2015)
+
+PHQ.datecol1=c("surveyDate0","surveyDate1","surveyDate2","surveyDate3","surveyDate4")
 PHQ.datecol2=c("PHQdate_BS1","PHQdate_BS2","StartDate_BS1")
 for (icol in PHQ.datecol1){PHQ.BS[[icol]]=as.Date(PHQ.BS[[icol]],format='%d%b%y')}
 for (icol in PHQ.datecol2){PHQ.BS[[icol]]=as.Date(PHQ.BS[[icol]],format='%m/%d/%Y')}
@@ -994,10 +1124,6 @@ PHQ.corr.step=rcorr(PHQ.fitbit.sub.step[,1],PHQ.fitbit.sub.step[,3])
 # linear regression of step and sleep
 PHQ.lm=lm(PHQ.fitbit.sub.all[,1]~PHQ.fitbit.sub.all[,2]+PHQ.fitbit.sub.all[,3])
 summary(PHQ.lm)
-# PHQ-3 sleep vs fitbit sleep (categorical?)
-PHQ3subcols=c("asleep_BS1","asleep_BS2","sleep_BS1","sleep_BS2")
-PHQ.fitbit.3=PHQ.fitbit[PHQ3subcols]
-PHQ.fitbit.3.long=
 ####################################### Self reported Sleep #######################################
 PHQSleep<-PHQ[which(PHQ$UserID %in% Sleep$Id),]
 PHQSleep$surveyDate1<-as.Date(as.character(PHQSleep$surveyDate1),"%d%b%y")
@@ -1226,6 +1352,31 @@ m10=lm(PHQtot1 ~ Calories, data=Activityave1);summary(m10)
 PHQMood <- merge(PHQ, Summary.mood, by.x="UserID",by.y="id")
 m1<-lm(RR ~ PHQtot0, data=PHQMood);summary(m1)
 
+############ PHQ change & Activity and sleep ############
+PHQ.BS=PHQ.BS[c("UserID","Year","Age","Sex","Ethnicity","Marital","Child","surveyDate0","surveyDate1","surveyDate2","PHQtot0","PHQtot1","PHQtot2",
+                "PHQdate_BS1","PHQtot_BS1","PHQdate_BS2","PHQtot_BS2")]
+PHQ.BS=PHQ.BS[which(!is.na(PHQ.BS$PHQtot0)),]
+PHQ.BS$PHQchange<-rowMeans(subset(PHQ.BS,select=c("PHQtot1","PHQtot2","PHQtot_BS1","PHQtot_BS2")),na.rm=TRUE)-PHQ.BS$PHQtot0
+######## penalized functional regression ########
+PHQoutcome=PHQ.BS[c("UserID","Year","Age","Sex","Ethnicity","Marital","Child","PHQchange")]
+PHQoutcome=PHQoutcome[which(!is.na(PHQoutcome$Age) & !is.na(PHQoutcome$Sex)),]
+dPS=merge(Sleep,PHQoutcome,by.x="Id",by.y="UserID")
+dPA=merge(Activity,PHQoutcome,by.x="Id",by.y="UserID")
+dPS.sleeptime.model<-funreg(id=dPS$Id,response=dPS$PHQchange,time=dPS$day,x=dPS$TotalHrAsleep,
+                            deg=3,family="gaussian");currModel=dPS.sleeptime.model
+dPS.sleepeff.model<-funreg(id=dPS$Id,response=dPS$PHQchange,time=dPS$day,x=dPS$Efficiency,
+                           deg=2,family="gaussian",num.bins=10);currModel=dPS.sleepeff.model  # have to have enough points in one bin
+#### Presentation of the model ####
+par(mfrow=c(2,2))
+plot(x=currModel$model.for.x[[1]]$bin.midpoints,y=currModel$model.for.x[[1]]$mu.x.by.bin,xlab="Day",ylab="X(t)",
+     main="Smoothed mean x values")
+plot(currModel,type="correlations",xlab="Day")
+plot(currModel,type="coefficients",xlab="Day")
+plot(currModel$subject.info$response,currModel$subject.info$fitted,
+     main="Predictive Performance",xlab="True dPHQ",ylab="Fitted dPHQ")
+abline(0,1)
+summarymodel=summary(currModel)
+modelperm=funreg.permutation(currModel)
 ############ compare personal average Mood/Act/Sleep ~ Internship & Gender ############
 basicpheno=PHQ[c("UserID","Age","Sex")]
 library(reshape2);
