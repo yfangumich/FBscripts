@@ -20,6 +20,7 @@ library("gtools")
 library("nnet") 
 library("mlogit")
 library("funreg")
+library("matrixStats")
 ####################################### Functions #######################################
 ## Sleep
 SleepSummary=function(dayfile,subj,allcols,InternStart){
@@ -166,6 +167,7 @@ Sleep.subjIDs=unique(Sleep$Id)
 Sleep=merge(Sleep,StartDates,by.x="Id",by.y="USERID",all.x=TRUE)
 Sleep$day=as.numeric(Sleep$SleepDay-Sleep$StartDate)
 Sleep$TotalHrAsleep=Sleep$TotalMinutesAsleep / 60
+Sleep$TotalHrInBed=Sleep$TotalTimeInBed / 60
 Sleep$Efficiency=Sleep$TotalMinutesAsleep / Sleep$TotalTimeInBed
 ###### Plot Sleep as a function of time ######
 SleepDay=aggregate(Efficiency~day,data=Sleep,mean)
@@ -575,6 +577,14 @@ mtext(side=4,line=3,"standard deviation")
 loess_fitsd=loess(sd~day,data=MoodDay,span=0.8)
 lines(MoodDay$day,predict(loess_fitsd),col="green")
 legend(20,2.9,c("mean","sd","nsub"),lty=c(1,1,1),lwd=c(2,2,2),col=c("blue","green","black"))
+par(mfrow=c(3,1))
+with(MoodDay,plot(day,n,main="mood"))
+with(SleepDay,plot(day,n,main="sleep"))
+with(ActDay,plot(day,n,main="activity"))
+par(mfrow=c(3,1))
+with(MoodDay,plot(day,sd,main="mood"))
+with(SleepDay,plot(day,sd,main="sleep"))
+with(ActDay,plot(day,sd,main="activity"))
 # end plotting
 ###### Mood & Activity ######
 MoodAct=merge(Mood,Activity,by.x=c("userid","Date_mood"),by.y=c("Id","ActivityDate"),sort=TRUE)
@@ -831,8 +841,24 @@ mergecols=c("userid","Date_mood","mood","Age","Sex","Ethnicity","Marital","Child
 MoodActSleep=merge(MoodAct,MoodSleep,by=mergecols,all=FALSE)
 MoodActSleep=MoodActSleep[which(!is.na(MoodActSleep$Age) & !is.na(MoodActSleep$Sex)),]
 
-MAS.null=lmer(mood ~ (1|userid),data=MoodActSleep,REML=FALSE)
-MAS.full=lmer(mood ~ TotalStepslog + TotalhrAsleep + day + (1+day|userid),data=MoodActSleep,REML=FALSE)
+MASrsc<-MoodActSleep
+MASrsc[,c("day")]<-scale(MASrsc[,c("day")])
+MASrsc$daysquare=MASrsc$day^2
+MASrsc=MASrsc[which(!is.na(MASrsc$Age) & !is.na(MASrsc$Sex)),]
+factorcols=c("Sex","Ethnicity","Marital","Child")
+MASrsc[,factorcols]=apply(MASrsc[,factorcols],2,function(x) as.factor(x))
+MAS.null=lmer(mood ~ (1|userid),data=MASrsc,REML=FALSE)
+MAS.fb=lmer(mood ~TotalStepslog + TotalhrAsleep + day + daysquare + (1+day|userid),data=MASrsc,REML=FALSE)
+summary(MAS.fb)
+MAS.full=lmer(mood ~ TotalStepslog + TotalhrAsleep + day + daysquare + (1+day|userid) + Age + Sex + Ethnicity + Marital + Child,data=MASrsc,REML=FALSE)
+summary(MAS.full)
+sjt.lmer(MAS.fb,MAS.full,showHeaderStrings=TRUE,stringB="Estimate",
+         stringDependentVariables="Response",labelDependentVariables=c("model.fitbit","model.full"),
+         labelPredictors=c("log10(totalsteps)","totalsleephr","day","day^2","Age","sex.female",
+                           "ethnicity.Asian","ethnicity.Mixed","Marital.engaged","Marital.married","child.no"),
+         separateConfColumn=FALSE, showStdBeta=TRUE,pvaluesAsNumbers=FALSE)
+MAS.aov<-anova(MAS.null,MAS.fb,MAS.full)
+capture.output(MAS.aov,file="work/Fitbit/FBscripts/tmp.doc")
 
 MAS.null=lmer(mood ~ (1|userid),data=MoodActSleep,REML=FALSE)
 MAS.act=lmer(mood ~ TotalStepslog + (1|userid),data=MoodActSleep,REML=FALSE)
@@ -1258,7 +1284,7 @@ boxplot(Sleepave1$sleepsrvfb ~ Sleepave1$Sex,xlab="Gender",ylab="Selfreport/Fitb
 #### Sleep on PHQ date 2 ####
 SleepPHQ2=merge(PHQSleep,Sleep,by.x=c("UserID","surveyDate2"),by.y=c("Id","SleepDay"))
 SleepPHQ2=SleepPHQ2[c("UserID","surveyDate2","Year","sleep24h2","sleepAve2","interest2","down2","asleep2","tired2","appetite2","failure2","concentr2","activity2","suic2","PHQtot2",
-                      "TotalSleepRecords","TotalMinutesAsleep","TotalTimeInBed")]
+                      "TotalSleepRecords","TotalMinutesAsleep","TotalTimeInBed","TotalHrAsleep")]
 SleepPHQ.generalname=c("surveyDate","sleep24h","sleepAve","interest","down","asleep","tired","appetite","failure","concentr","activity","suic","PHQtot")
 colnames(SleepPHQ1)[c(2,4:15)]=SleepPHQ.generalname
 colnames(SleepPHQ2)[c(2,4:15)]=SleepPHQ.generalname
@@ -1292,8 +1318,67 @@ m8<-glmer(activity ~ SRvFB + (1|UserID),data=SleepPHQ12,family=binomial,nAGQ=0);
 m9<-glmer(suic ~ SRvFB + (1|UserID),data=SleepPHQ12,family=binomial,nAGQ=0);summary(m9) 
 
 # Average Sleep on the week before PHQ date 2
+######## Sleep change over time, compare self-report pattern and fitbit record pattern ########
+SRsleep<-PHQSleep[c("UserID","sleep24h0","sleepAve0","sleep24h1","sleepAve1","sleep24h2","sleepAve2")]
+PHQtimes<-PHQSleep[c("UserID","Year","surveyDate1","surveyDate2")]
+PHQtimes$surveyDate1[which(PHQtimes$Year=="2014" & is.na(PHQtimes$surveyDate1))]=
+  mean(PHQtimes$surveyDate1[which(PHQtimes$Year=="2014")],na.rm=T)
+PHQtimes$surveyDate1[which(PHQtimes$Year=="2015" & is.na(PHQtimes$surveyDate1))]=
+  mean(PHQtimes$surveyDate1[which(PHQtimes$Year=="2015")],na.rm=T)
+PHQtimes$surveyDate2[which(PHQtimes$Year=="2014" & is.na(PHQtimes$surveyDate2))]=
+  mean(PHQtimes$surveyDate2[which(PHQtimes$Year=="2014")],na.rm=T)
+PHQtimes$surveyDate2[which(PHQtimes$Year=="2015" & is.na(PHQtimes$surveyDate2))]=
+  mean(PHQtimes$surveyDate2[which(PHQtimes$Year=="2015")],na.rm=T)
+tmpSleep<-merge(Sleep,PHQtimes,by.x="Id",by.y="UserID")
+nsub<-nrow(PHQtimes)
+FBsleep<-data.frame(UserID=integer(nsub),baseasleep=numeric(nsub),q1asleep=numeric(nsub),q2asleep=numeric(nsub),
+                    baseinbed=numeric(nsub),q1inbed=numeric(nsub),q2inbed=numeric(nsub))
+for (i in 1:nsub){
+  print(i)
+  FBsleep$UserID[i]<-PHQtimes$UserID[i]
+  subSleep=tmpSleep[which(tmpSleep$Id==FBsleep$UserID[i]),]
+  FBsleep$baseasleep[i]<-mean(subSleep$TotalHrAsleep[which(subSleep$SleepDay<=subSleep$StartDate)])
+  FBsleep$q1asleep[i]  <-mean(subSleep$TotalHrAsleep[which(subSleep$SleepDay>subSleep$StartDate & subSleep$SleepDay<=subSleep$surveyDate1)])
+  FBsleep$q2asleep[i]  <-mean(subSleep$TotalHrAsleep[which(subSleep$SleepDay>subSleep$surveyDate1 & subSleep$SleepDay<=subSleep$surveyDate2)])
+  FBsleep$baseinbed[i] <-mean(subSleep$TotalHrInBed[which(subSleep$SleepDay<=subSleep$StartDate)])
+  FBsleep$q1inbed[i]   <-mean(subSleep$TotalHrInBed[which(subSleep$SleepDay>subSleep$StartDate & subSleep$SleepDay<=subSleep$surveyDate1)])
+  FBsleep$q2inbed[i]   <-mean(subSleep$TotalHrInBed[which(subSleep$SleepDay>subSleep$surveyDate1 & subSleep$SleepDay<=subSleep$surveyDate2)])
+}
+SRFBsleep=merge(SRsleep,FBsleep,by="UserID")
+SRFBmean=colMeans(SRFBsleep,na.rm=T)
+SRFBsd=colSds(as.matrix(SRFBsleep),na.rm=T)
+ylimits=range(c(SRFBmean[c(2:13)]-SRFBsd[c(2:13)],SRFBmean[c(2:13)]+SRFBsd[c(2:13)]))
+ylimits=c(4,10)
+x=c(0:2)
+plot(x,SRFBmean[c(2,4,6)],type="b",col="red",ylim=ylimits,
+     xlab="time\n0=baseline,1=quarter1,2=quarter2",ylab="Hour")
+arrows(x, SRFBmean[c(2,4,6)]-SRFBsd[c(2,4,6)], x, SRFBmean[c(2,4,6)]+SRFBsd[c(2,4,6)], length=0.05, angle=90, code=3,col="red")
+lines(x,SRFBmean[c(3,5,7)],type="b",col="orange",ylim=ylimits)
+arrows(x, SRFBmean[c(3,5,7)]-SRFBsd[c(3,5,7)], x, SRFBmean[c(3,5,7)]+SRFBsd[c(3,5,7)], length=0.05, angle=90, code=3,col="orange")
+lines(x,SRFBmean[c(8:10)],type="b",col="blue",ylim=ylimits)
+arrows(x, SRFBmean[c(8:10)]-SRFBsd[c(8:10)], x, SRFBmean[c(8:10)]+SRFBsd[c(8:10)], length=0.05, angle=90, code=3,col="blue")
+lines(x,SRFBmean[c(11:13)],type="b",col="green",ylim=ylimits)
+arrows(x, SRFBmean[c(11:13)]-SRFBsd[c(11:13)], x, SRFBmean[c(11:13)]+SRFBsd[c(11:13)], length=0.05, angle=90, code=3,col="green")
+legend(0.1,6,c("selfreport_day","selfreport_week","fitbit_asleep","fitbit_inbed"),lty=c(1,1,1),lwd=c(2,2,2),col=c("red","orange","blue","green"))
 
+wilcox.test(SRFBsleep$sleep24h0,SRFBsleep$baseasleep,paired = T)
+wilcox.test(SRFBsleep$sleep24h0,SRFBsleep$baseinbed,paired = T)
+wilcox.test(SRFBsleep$sleepAve0,SRFBsleep$baseasleep,paired = T)
+wilcox.test(SRFBsleep$sleepAve0,SRFBsleep$baseinbed,paired=T)
 
+wilcox.test(SRFBsleep$sleep24h1,SRFBsleep$q1asleep,paired = T)
+wilcox.test(SRFBsleep$sleep24h1,SRFBsleep$q1inbed,paired = T)
+t.test(SleepPHQ1$sleep24h1,SleepPHQ1$TotalHrAsleep,paired=T)
+wilcox.test(SRFBsleep$sleepAve1,SRFBsleep$q1asleep,paired = T)
+t.test(SRFBsleep$sleepAve1,SRFBsleep$q1inbed,paired = T)
+wilcox.test(Sleepave1$sleepsr,Sleepave1$sleepfb,paired=T)
+
+t.test(SleepPHQ2$sleep24h2,SleepPHQ2$TotalHrAsleep,paired=T)
+wilcox.test(SRFBsleep$sleep24h2,SRFBsleep$q2inbed,paired = T)
+wilcox.test(SRFBsleep$sleep24h2,SRFBsleep$q2asleep,paired = T)
+wilcox.test(SRFBsleep$sleepAve2,SRFBsleep$q2asleep,paired = T)
+wilcox.test(Sleepave2$sleepsr,Sleepave2$sleepfb,paired=T)
+wilcox.test(SRFBsleep$sleepAve2,SRFBsleep$q2inbed,paired=T)
 ############ PHQ & Activity ############
 PHQActivity <- PHQ[which(PHQ$UserID %in% Activity$Id),]
 PHQActivity$surveyDate1<-as.Date(as.character(PHQActivity$surveyDate1),"%d%b%y")
@@ -1357,15 +1442,56 @@ PHQ.BS=PHQ.BS[c("UserID","Year","Age","Sex","Ethnicity","Marital","Child","surve
                 "PHQdate_BS1","PHQtot_BS1","PHQdate_BS2","PHQtot_BS2")]
 PHQ.BS=PHQ.BS[which(!is.na(PHQ.BS$PHQtot0)),]
 PHQ.BS$PHQchange<-rowMeans(subset(PHQ.BS,select=c("PHQtot1","PHQtot2","PHQtot_BS1","PHQtot_BS2")),na.rm=TRUE)-PHQ.BS$PHQtot0
+######## Compare mean and variance ########
+PHQ.BS.phq=PHQ.BS[c("PHQtot0","PHQtot_BS1","PHQtot1","PHQtot_BS2","PHQtot2")]
+PHQ.BS.phqmean=colMeans(PHQ.BS.phq,na.rm = T)
+PHQ.BS.phqsd=colSds(as.matrix(PHQ.BS.phq),na.rm=T)
+par(mfrow=c(2,1))
+plot(c(1:5),as.vector(PHQ.BS.phqmean),xlab="",ylab="mean",main="PHQ",xaxt="n",ylim=c(3,7))
+axis(1,labels=FALSE)
+labels=c("baseline","BS1","Q1","BS2","Q2")
+text(1:5,1.8, srt = 0, adj = 0.5,labels = labels, xpd = TRUE)
+mtext(1, text = "Date", line = 3)
+plot(c(1:5),as.vector(PHQ.BS.phqsd),xlab="Date",ylab="sd",xaxt="n",ylim=c(2,5))
+axis(1,labels=FALSE)
+text(1:5,1, srt = 0, adj = 0.5,labels = labels, xpd = TRUE)
+#mtext(1, text = "Date", line = 3)
 ######## penalized functional regression ########
 PHQoutcome=PHQ.BS[c("UserID","Year","Age","Sex","Ethnicity","Marital","Child","PHQchange")]
-PHQoutcome=PHQoutcome[which(!is.na(PHQoutcome$Age) & !is.na(PHQoutcome$Sex)),]
+#PHQoutcome=PHQoutcome[which(!is.na(PHQoutcome$Age) & !is.na(PHQoutcome$Sex)),]
 dPS=merge(Sleep,PHQoutcome,by.x="Id",by.y="UserID")
 dPA=merge(Activity,PHQoutcome,by.x="Id",by.y="UserID")
+dPM=merge(Mood,PHQoutcome,by.x="userid",by.y="UserID")
+dPM$userid=as.integer(dPM$userid)
 dPS.sleeptime.model<-funreg(id=dPS$Id,response=dPS$PHQchange,time=dPS$day,x=dPS$TotalHrAsleep,
-                            deg=3,family="gaussian");currModel=dPS.sleeptime.model
+                            deg=2,family="gaussian");currModel=dPS.sleeptime.model
 dPS.sleepeff.model<-funreg(id=dPS$Id,response=dPS$PHQchange,time=dPS$day,x=dPS$Efficiency,
-                           deg=2,family="gaussian",num.bins=10);currModel=dPS.sleepeff.model  # have to have enough points in one bin
+                           deg=2,family="gaussian");currModel=dPS.sleepeff.model  # have to have enough points in one bin, adjusted by num.bins
+dPM.mood.model<-funreg(id=dPM$userid,response=dPM$PHQchange,time=dPM$day,x=dPM$mood,
+                       deg=2,family="gaussian");currModel=dPM.mood.model
+dPA.step.model<-funreg(id=dPA$Id,response=dPA$PHQchange,time=dPA$day,x=dPA$TotalSteps,
+                       deg=2,family="gaussian");currModel=dPA.step.model 
+dPA.sed.model<-funreg(id=dPA$Id,response=dPA$PHQchange,time=dPA$day,x=dPA$SedentaryMinutes,
+                      deg=2,family="gaussian");currModel=dPA.sed.model 
+dPA.cal.model<-funreg(id=dPA$Id,response=dPA$PHQchange,time=dPA$day,x=dPA$Calories,
+                      deg=2,family="gaussian");currModel=dPA.cal.model
+dPA.dist.model<-funreg(id=dPA$Id,response=dPA$PHQchange,time=dPA$day,x=dPA$TotalDistance,
+                      deg=2,family="gaussian");currModel=dPA.dist.model
+dPA.very.model<-funreg(id=dPA$Id,response=dPA$PHQchange,time=dPA$day,x=dPA$VeryActiveMinutes,
+                       deg=2,family="gaussian");currModel=dPA.very.model
+dPA.fair.model<-funreg(id=dPA$Id,response=dPA$PHQchange,time=dPA$day,x=dPA$FairlyActiveMinutes,
+                       deg=2,family="gaussian");currModel=dPA.fair.model
+dPA.light.model<-funreg(id=dPA$Id,response=dPA$PHQchange,time=dPA$day,x=dPA$LightlyActiveMinutes,
+                       deg=2,family="gaussian");currModel=dPA.light.model
+
+dPScov=dPS[which(!is.na(dPS$Age) & !is.na(dPS$Sex)),]
+dPMcov=dPM[which(!is.na(dPM$Age.x) & !is.na(dPM$Sex.x)),]
+dPScov.sleepeff.model<-funreg(id=dPScov$Id,response=dPScov$PHQchange,time=dPScov$day,x=dPScov$Efficiency,
+                              other.covariates=dPScov[,c("Sex","Age","Ethnicity","Marital","Child")],deg=2,family="gaussian",
+                           num.bins=20);currModel=dPScov.sleepeff.model  # have to have enough points in one bin, adjusted by num.bins
+dPMcov.mood.model<-funreg(id=dPMcov$userid,response=dPMcov$PHQchange,time=dPMcov$day,x=dPMcov$mood,
+                          other.covariates=dPMcov[,c("Sex.x","Age.x","Ethnicity.x","Marital.x","Child.x")],deg=2,family="gaussian",
+                          num.bins=20);currModel=dPMcov.mood.model
 #### Presentation of the model ####
 par(mfrow=c(2,2))
 plot(x=currModel$model.for.x[[1]]$bin.midpoints,y=currModel$model.for.x[[1]]$mu.x.by.bin,xlab="Day",ylab="X(t)",
