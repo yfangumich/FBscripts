@@ -247,6 +247,7 @@ Activity=rbind(Activity2014,Activity2015)
 Activity=Activity[which(Activity$TotalSteps!=0),]
 Activity=merge(Activity,StartDates,by.x="Id",by.y="USERID",all.x=TRUE)
 Activity$day=as.numeric(Activity$ActivityDate-Activity$StartDate)
+Activity$thousandSteps=Activity$TotalSteps / 1000
 activity.SubjIDs=unique(Activity$Id)
 ###### Plot Activity as a function of time ######
 ActDay=aggregate(TotalSteps~day,data=Activity,mean)
@@ -985,13 +986,39 @@ anova(MASI.ba.mood.null,MASI.gender.mood)
 anova(MASI.ba.act.null,MASI.gender.act)
 anova(MASI.ba.sleep.null,MASI.gender.sleep)
 anova(MASI.ba.sleepeff.null,MASI.gender.sleepeff)
+######## Multi Level ########
+MoodActSleep$meanhrAsleep <- ave(MoodActSleep$TotalhrAsleep,list(MoodActSleep$userid))
+MoodActSleep$centhrAsleep <- MoodActSleep$TotalhrAsleep - MoodActSleep$meanhrAsleep
+MoodActSleep$thousandStep <- MoodActSleep$TotalSteps / 1000
+MoodActSleep$meanthousandStep <- ave(MoodActSleep$thousandStep,list(MoodActSleep$userid))
+MoodActSleep$centthousandStep <- MoodActSleep$thousandStep - MoodActSleep$meanthousandStep
+MoodActSleep[,c("day")]<-scale(MoodActSleep[,c("day")])
+MoodActSleep$daysquare <- MoodActSleep$day ^2
+#### same day ####
+model1 <-  lmer(mood ~ 1 + (1|userid),data=MoodActSleep,REML=FALSE);summary(model1)
+model2 <-  lmer(mood ~ 1 + meanhrAsleep + meanthousandStep + (1|userid),data=MoodActSleep,REML=FALSE);summary(model2)
+model3 <-  lmer(mood ~ 1 + meanhrAsleep + meanthousandStep +  TotalhrAsleep + thousandStep + (1|userid),data=MoodActSleep,REML=FALSE);summary(model3)
+model4 <-  lmer(mood ~ 1 + meanhrAsleep + meanthousandStep +  centhrAsleep + centthousandStep + (1|userid),data=MoodActSleep,REML=FALSE);summary(model4)
+model5 <-  lmer(mood ~ 1 + meanhrAsleep * TotalhrAsleep + meanthousandStep + thousandStep + (1|userid),data=MoodActSleep,REML=FALSE);summary(model5)
+model6 <-  lmer(mood ~ 1 + meanhrAsleep * TotalhrAsleep + meanthousandStep * thousandStep + (1|userid),data=MoodActSleep,REML=FALSE);summary(model6)
+model7 <-  lmer(mood ~ 1 + meanhrAsleep + TotalhrAsleep + meanthousandStep +  thousandStep + Ratio + (1|userid),data=MoodActSleep,REML=FALSE);summary(model7)
+model8 <-  lmer(mood ~ 1 + meanhrAsleep + TotalhrAsleep + meanthousandStep +  thousandStep + Ratio + day + (1|userid),data=MoodActSleep,REML=FALSE);summary(model8)
+model9 <-  lmer(mood ~ 1 + meanhrAsleep + TotalhrAsleep + meanthousandStep +  thousandStep + Ratio + day + daysquare + (1|userid),data=MoodActSleep,REML=FALSE);summary(model9)
+model10 <- lmer(mood ~ 1 + meanhrAsleep + TotalhrAsleep + meanthousandStep +  thousandStep + Ratio + day + daysquare + (1+day|userid),data=MoodActSleep,REML=FALSE);summary(model10)
+model11 <- lmer(mood ~ 1 + meanhrAsleep * TotalhrAsleep + meanthousandStep *  thousandStep + Ratio + day + daysquare + (1+day|userid),data=MoodActSleep,REML=FALSE);summary(model11)
+sjt.lmer(model1,model2,model3,model5,model6,showHeaderStrings=TRUE,stringB="Estimate",
+         stringDependentVariables="Response",labelDependentVariables=c("model.null","model.2ndlevel","model.full","model.1inter","model.2inter"),
+         labelPredictors=c("meanHrAsleep","meanSteps/1000","AsleepHour","Steps/1000","mean:everday sleep","mean:everyday step"),
+         separateConfColumn=FALSE, showStdBeta=TRUE,pvaluesAsNumbers=FALSE)
 ######## Time lag association ########
 Mood<-rbind(Mood2014,Mood2015)
-Sleep<-rbind(Sleep2014,Sleep2015)
-Sleep$Yesterday<-Sleep$SleepDay-1
-Sleep$Tomorrow<-Sleep$SleepDay+1
-Sleep$tdby<-Sleep$SleepDay-2
-Sleep$tdat<-Sleep$SleepDay+2
+Sleep$Yesterday<-Sleep$SleepDay-1;Sleep$Tomorrow<-Sleep$SleepDay+1;Sleep$tdby<-Sleep$SleepDay-2;Sleep$tdat<-Sleep$SleepDay+2
+Activity$Yesterday<-Activity$ActivityDate-1;Activity$Tomorrow<-Activity$ActivityDate+1;Activity$tdby<-Activity$ActivityDate-2;Activity$tdat<-Activity$ActivityDate+2
+MStdby
+MAtdby
+MoodActSleep=merge(MoodAct,MoodSleep,by=mergecols,all=FALSE)
+MoodActSleep=MoodActSleep[which(!is.na(MoodActSleep$Age) & !is.na(MoodActSleep$Sex)),]
+
 #### Mood - sleep efficiency time lag correlation ####
 MoodSleepfull=merge(Mood,Sleep,by.x=c("userid","Date_mood"),by.y=c("Id","SleepDay"),all.x=TRUE,all.y=TRUE,sort=TRUE)
 MoodSleepfull$Ratio=MoodSleepfull$TotalMinutesAsleep/MoodSleepfull$TotalTimeInBed
