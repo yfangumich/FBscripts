@@ -1135,14 +1135,7 @@ sjt.lmer(model1,model2,model3,model4,model5,model6,
          labelPredictors=c("day","daysquare","Age","Sex","meanMoodpre","meanAsleeppre","meanAsleepQ1","meanAsleepQ2","AsleepHr","meanSteppre","meanStepQ1","meanStepQ2","Steps/1000"),
          separateConfColumn=FALSE, showStdBeta=FALSE,pvaluesAsNumbers=FALSE,showAIC=TRUE,
          digits.p=3,digits.est=2,digits.ci=2)
-finalcols<-c("day","daysquare","meanMoodpre","meanStepQ2")
-sjt.lmer(modelfinal,
-         showHeaderStrings=TRUE,stringB="Estimate",
-         stringDependentVariables="Response",
-         labelDependentVariables=c("final"),
-         labelPredictors=finalcols,
-         separateConfColumn=FALSE, showStdBeta=FALSE,pvaluesAsNumbers=FALSE,showAIC=TRUE,
-         digits.p=3,digits.est=2,digits.ci=2)
+         
 anova(model1,model2,model3,model4,model5,model6,modelfinal)
 
 #### Mood - sleep efficiency time lag correlation ####
