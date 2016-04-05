@@ -21,6 +21,9 @@ library("nnet")
 library("mlogit")
 library("funreg")
 library("matrixStats")
+library("leaps")
+library("xtable")
+library("gridExtra")
 ####################################### Functions #######################################
 ## Sleep
 SleepSummary=function(dayfile,subj,allcols,InternStart){
@@ -1030,114 +1033,189 @@ MASpre$meanSteppre <- ave(MASpre$thousandStep,list(MASpre$userid))
 MASpre$meanMoodpre <- ave(MASpre$mood,list(MASpre$userid))
 MASpre <- MASpre[c("userid","meanSleeppre","meanSteppre","meanMoodpre")]
 MASpre <- MASpre[!duplicated(MASpre),]
-MASwodate <- MASfull[which(is.na(MASfull$surveyDate1)),]
-MASwdate <- MASfull[which(!is.na(MASfull$surveyDate1)),]
-MASq1 <- rbind(MASwdate[which((MASwdate$day>=0 & MASwdate$Date_mood<MASwdate$surveyDate1)),],
-               MASwodate[which(MASwodate$day>=0 & MASwodate$day<90),])
-MASq2 <- rbind(MASwdate[which(MASwdate$Date_mood>=MASwdate$surveyDate1 & MASwdate$Date_mood<MASwdate$surveyDate2),],
-               MASwodate[which(MASwodate$day>=90 & MASwodate$day<180),])
-MASq1$meanSleepq1 <- ave(MASq1$TotalhrAsleep,list(MASq1$userid))
-MASq1$meanStepq1 <- ave(MASq1$thousandStep,list(MASq1$userid))
-MASq2$meanSleepq2 <- ave(MASq2$TotalhrAsleep,list(MASq2$userid))
-MASq2$meanStepq2 <- ave(MASq2$thousandStep,list(MASq2$userid))
-MASq1 <- MASq1[c("userid","meanSleepq1","meanStepq1")]
-MASq1 <- MASq1[!duplicated(MASq1),]
-MASq2 <- MASq2[c("userid","meanSleepq2","meanStepq2")]
-MASq2 <- MASq2[!duplicated(MASq2),]
+#MASwodate <- MASfull[which(is.na(MASfull$surveyDate1)),]
+#MASwdate <- MASfull[which(!is.na(MASfull$surveyDate1)),]
+#MASq1 <- rbind(MASwdate[which((MASwdate$day>=0 & MASwdate$Date_mood<MASwdate$surveyDate1)),],
+#               MASwodate[which(MASwodate$day>=0 & MASwodate$day<90),])
+#MASq2 <- rbind(MASwdate[which(MASwdate$Date_mood>=MASwdate$surveyDate1 & MASwdate$Date_mood<MASwdate$surveyDate2),],
+#               MASwodate[which(MASwodate$day>=90 & MASwodate$day<180),])
+#MASq1$meanSleepq1 <- ave(MASq1$TotalhrAsleep,list(MASq1$userid))
+#MASq1$meanStepq1 <- ave(MASq1$thousandStep,list(MASq1$userid))
+#MASq2$meanSleepq2 <- ave(MASq2$TotalhrAsleep,list(MASq2$userid))
+#MASq2$meanStepq2 <- ave(MASq2$thousandStep,list(MASq2$userid))
+#MASq1 <- MASq1[c("userid","meanSleepq1","meanStepq1")]
+#MASq1 <- MASq1[!duplicated(MASq1),]
+#MASq2 <- MASq2[c("userid","meanSleepq2","meanStepq2")]
+#MASq2 <- MASq2[!duplicated(MASq2),]
 MASpost <- MoodActSleep[which(MoodActSleep$day>=0),]
 MASpost <- merge(MASpost,MASpre,by="userid")
-MASpost <- merge(MASpost,MASq1,by="userid")
-MASpost <- merge(MASpost,MASq2,by="userid")
+#MASpost <- merge(MASpost,MASq1,by="userid")
+#MASpost <- merge(MASpost,MASq2,by="userid")
 #MASpost$Ethnicity<-as.factor(MASpost$Ethnicity)
 #MASpost$Marital<-as.factor(MASpost$Marital)
 #MASpost$Child<-as.factor(MASpost$Child)
 MASpost[,c("day")]<-scale(MASpost[,c("day")])
 MASpost$daysquare <- MASpost$day^2
 MASpost$SleepPre <- MASpost$meanSleeppre>=6
-MASpost$Sleepq1 <- MASpost$meanSleepq1>=6
-MASpost$Sleepq2 <- MASpost$meanSleepq2>=6
+#MASpost$Sleepq1 <- MASpost$meanSleepq1>=6
+#MASpost$Sleepq2 <- MASpost$meanSleepq2>=6
 # the reason to use continuous baseline sleep instead of binary: most of the sleep time is over 6h
 MASpost<-MASpost[which(!is.na(MASpost$Age) & !is.na(MASpost$Sex)),]
-model1 <- lmer(mood ~ 1 + (1|userid),data=MASpost,REML=FALSE);summary(model1)
-model2 <- lmer(mood ~ 1 + day + daysquare + (1+day|userid),data=MASpost,REML=FALSE);summary(model2)
-model3 <- lmer(mood ~ 1 + day + daysquare + Age + Sex + (1+day|userid),data=MASpost,REML=FALSE);summary(model3)
-model4 <- lmer(mood ~ 1 + day + daysquare + Age + Sex + meanMoodpre + (1+day|userid),data=MASpost,REML=FALSE);summary(model4)
-model5 <- lmer(mood ~ 1 + day + daysquare + Age + Sex + meanMoodpre + meanSleeppre + meanSleepq1 + meanSleepq2 + TotalhrAsleep 
-               + (1+day+TotalhrAsleep|userid),data=MASpost,REML=FALSE);summary(model5)
-model6 <- lmer(mood ~ 1 + day + daysquare + Age + Sex + meanMoodpre + meanSleeppre + meanSleepq1 + meanSleepq2 + TotalhrAsleep
-               + meanSteppre + meanStepq1 + meanStepq2 + thousandStep + (1+day+TotalhrAsleep+thousandStep|userid),data=MASpost,REML=FALSE);summary(model6)
-modelfinal <- lmer(mood ~ 1 + day + meanMoodpre + meanStepq2 + TotalhrAsleep + thousandStep + (1+day+TotalhrAsleep+thousandStep|userid),data=MASpost,REML=FALSE);summary(modelfinal)
-sjt.lmer(model1,model2,model3,model4,model5,model6,
+MASpost<-merge(MASpost,Baseline2010,by.x="userid",by.y="UserID")
+stargazer(MASpost,type="text")
+colnames(MASpost)[which(names(MASpost)=="meanMoodpre")] <- "BaselineMood"
+colnames(MASpost)[which(names(MASpost)=="meanSleeppre")] <- "BaselineSleepTime"
+colnames(MASpost)[which(names(MASpost)=="meanSteppre")] <- "BaselineSteps"
+colnames(MASpost)[which(names(MASpost)=="Neu0")] <- "Neuroticism"
+colnames(MASpost)[which(names(MASpost)=="depr0")] <- "PersonalHistoryofDepression"
+colnames(MASpost)[which(names(MASpost)=="PHQtot0")] <- "BaselineDepressionSymptoms"
+colnames(MASpost)[which(names(MASpost)=="EFE0")] <- "DifficultEarlyFamilyEnvironment"
+MASpost$PersonalHistoryofDepression <-as.numeric(MASpost$PersonalHistoryofDepression)
+MASpost$Sex <-as.numeric(MASpost$Sex)
+MASpost2ndlevel <- MASpost[c("userid","Age","Sex","BaselineMood","BaselineSleepTime","BaselineSteps","Neuroticism",
+                             "PersonalHistoryofDepression","BaselineDepressionSymptoms","DifficultEarlyFamilyEnvironment")]
+MASpost2ndlevel <- MASpost2ndlevel[!duplicated(MASpost2ndlevel),]
+stargazer(MASpost2ndlevel,type="text")
+
+#### check collinearity ####
+submat<-MASpost[c("Age","Sex","BaselineMood","BaselineSleepTime","BaselineSteps",
+                  "Neuroticism","PersonalHistoryofDepression","BaselineDepressionSymptoms","DifficultEarlyFamilyEnvironment")]
+#submat <- submat[!duplicated(submat),]
+corstarsl <- function(x){ 
+  require(Hmisc) 
+  x <- as.matrix(x) 
+  R <- rcorr(x)$r 
+  p <- rcorr(x)$P 
+  # define notions for significance levels; spacing is important.
+  mystars <- ifelse(p < .001, "***", ifelse(p < .01, "** ", ifelse(p < .05, "* ", " ")))
+  # trunctuate the matrix that holds the correlations to two decimal
+  R <- format(round(cbind(rep(-1.11, ncol(x)), R), 2))[,-1] 
+  # build a new matrix that includes the correlations with their apropriate stars 
+  Rnew <- matrix(paste(R, mystars, sep=""), ncol=ncol(x)) 
+  diag(Rnew) <- paste(diag(R), " ", sep="") 
+  rownames(Rnew) <- colnames(x) 
+  colnames(Rnew) <- paste(colnames(x), "", sep="") 
+  # remove upper triangle
+  Rnew <- as.matrix(Rnew)
+  Rnew[upper.tri(Rnew, diag = TRUE)] <- ""
+  Rnew <- as.data.frame(Rnew) 
+  # remove last column and return the matrix (which is now a data frame)
+  Rnew <- cbind(Rnew[1:length(Rnew)-1])
+  return(Rnew) 
+}
+corresult=corstarsl(submat)
+grid.table(corresult)
+stargazer(corresult, type="text")
+corvif(submat)
+MASposttmp<-MASpost[c("mood","Age","Sex","BaselineSleepTime","BaselineSteps","BaselineMood",
+                      "PersonalHistoryofDepression","DifficultEarlyFamilyEnvironment","Neuroticism","BaselineDepressionSymptoms")]
+vif.sel<-VIF::vif(MASposttmp$mood,MASposttmp[c(-1)])
+#### stepwise ####
+fit.full<-lm(mood ~ 1 + Age + Sex + BaselineMood + BaselineSleepTime + BaselineSteps + 
+               Neuroticism + PersonalHistoryofDepression + BaselineDepressionSymptoms + DifficultEarlyFamilyEnvironment,data=MASposttmp)
+fit.null<-lm(mood ~ 1,data=MASposttmp)
+stats::step(fit.null,scope = list(lower=fit.null,upper=fit.full),direction="forward")
+stats::step(fit.full,data=MASposttmp,direction="backward")
+stats::step(fit.null,scope=list(upper=fit.full),data=MASposttmp,direction="both")
+attach(MASpost)
+#### leap ####
+leaps<-regsubsets(mood ~ 1 + Age + Sex + BaselineMood + BaselineSleepTime + BaselineSteps + 
+                    Neuroticism + PersonalHistoryofDepression + BaselineDepressionSymptoms + DifficultEarlyFamilyEnvironment,data=MASpost,nbest=10)
+plot(leaps,scale="adjr2")
+plot(leaps,scale="bic")
+plot(leaps,scale="Cp")
+bestfit<-lm(mood ~ 1 + Age + Sex + meanMoodpre + Neu0 + EFE0 + meanSleeppre + meanSleepq2 + meanStepq2,data=MASpost)
+summary(bestfit)
+bestfit_2<-lm(mood ~ 1 + day + Age + Sex + meanMoodpre + Neu0 + EFE0 + meanSleeppre + meanSleepq2 + meanStepq2,data=MASpost)
+summary(bestfit_2)
+
+#### second-level variables ####
+m1 <-lm(mood ~ 1 + Age + BaselineMood + BaselineSleepTime + PersonalHistoryofDepression + DifficultEarlyFamilyEnvironment + Neuroticism, data=MASpost);summary(m1)
+stargazer(m1,type="text",star.cutoffs=c(0.05,0.01,0.001));
+coefs=summary(m1)$coefficients;p.adjust(coefs[2:nrow(coefs),4],method="fdr")<0.001
+m2 <-lm(mood ~ 1 + Age + BaselineMood + BaselineSleepTime, 
+        data=MASpost);summary(m2)
+stargazer(m2,type="text")
+coefs=summary(m2)$coefficients;p.adjust(coefs[2:nrow(coefs),4],method="fdr")<0.05
+#### add daily data ####
+m3 <-lmer(mood ~ 1 + Age + BaselineMood + BaselineSleepTime + PersonalHistoryofDepression + DifficultEarlyFamilyEnvironment + Neuroticism
+          + day + (1|userid), data=MASpost);summary(m3)
+coefs=summary(m3)$coefficients;p.adjust(coefs[2:nrow(coefs),5],method="fdr")<0.001
+m4 <-lmer(mood ~ 1 + Age + BaselineMood + BaselineSleepTime + PersonalHistoryofDepression + DifficultEarlyFamilyEnvironment + Neuroticism
+          + day + daysquare + (1|userid), data=MASpost);summary(m4)
+coefs=summary(m4)$coefficients;p.adjust(coefs[2:nrow(coefs),5],method="fdr")<0.001
+m5 <-lmer(mood ~ 1 + Age + BaselineMood + BaselineSleepTime + PersonalHistoryofDepression + DifficultEarlyFamilyEnvironment + Neuroticism
+          + day + daysquare + TotalhrAsleep + (1|userid), data=MASpost);summary(m5)
+coefs=summary(m5)$coefficients;p.adjust(coefs[2:nrow(coefs),5],method="fdr")<0.001
+m6 <-lmer(mood ~ 1 + Age + BaselineMood + BaselineSleepTime + PersonalHistoryofDepression + DifficultEarlyFamilyEnvironment + Neuroticism
+          + day + daysquare + TotalhrAsleep + thousandStep + (1|userid), data=MASpost);summary(m6)
+coefs=summary(m6)$coefficients;p.adjust(coefs[2:nrow(coefs),5],method="fdr")<0.001
+m7 <-lmer(mood ~ 1 + Age + BaselineMood + BaselineSleepTime + PersonalHistoryofDepression + DifficultEarlyFamilyEnvironment + Neuroticism
+          + day + daysquare + TotalhrAsleep + thousandStep + (1+TotalhrAsleep|userid), data=MASpost);summary(m7)
+coefs=summary(m7)$coefficients;p.adjust(coefs[2:nrow(coefs),5],method="fdr")<0.001
+m8 <-lmer(mood ~ 1 + Age + BaselineMood + BaselineSleepTime + PersonalHistoryofDepression + DifficultEarlyFamilyEnvironment + Neuroticism
+          + day + daysquare + TotalhrAsleep + thousandStep + (1+TotalhrAsleep+thousandStep|userid), data=MASpost);summary(m8)
+coefs=summary(m8)$coefficients;p.adjust(coefs[2:nrow(coefs),5],method="fdr")<0.001
+mreduce1 <-lmer(mood ~ 1 + BaselineMood + DifficultEarlyFamilyEnvironment
+                + day + daysquare + TotalhrAsleep + thousandStep + (1+TotalhrAsleep+thousandStep|userid), data=MASpost)
+summary(mreduce1)
+coefs=summary(mreduce1)$coefficients;p.adjust(coefs[2:nrow(coefs),5],method="fdr")
+
+sjt.lmer(m3,m4,m5,m6,m7,m8,
          showHeaderStrings=TRUE,stringB="Estimate",
          stringDependentVariables="Response",
-         labelDependentVariables=c("null","day","day+demo","day+demo+baseline_mood","SecondLevel+FirstLevel-Sleep","SecondLevel+FirstLevel-Sleep+Step"),
-         labelPredictors=c("day","daysquare","Age","Sex","meanMoodpre","meanAsleeppre","meanAsleepQ1","meanAsleepQ2","AsleepHr","meanSteppre","meanStepQ1","meanStepQ2","Steps/1000"),
+         labelDependentVariables=c("Day","Daysquare","Daily Sleep Hour","Daily Steps(*1000)","Random slope of daily sleep","random slope of daily steps"),
+         labelPredictors=c("Age","Baseline Mood","Baseline Sleep Hour","Personal History of Depression","DifficultyEarlyFamilyEnviornment","Neuroticism",
+                           "day","daysquare","Daily Sleep Hour","Daily Steps(*1000)"),
          separateConfColumn=FALSE, showStdBeta=FALSE,pvaluesAsNumbers=FALSE,showAIC=TRUE,
          digits.p=3,digits.est=2,digits.ci=2)
-sjt.lmer(modelfinal,
+sjt.lmer(mreduce1,
          showHeaderStrings=TRUE,stringB="Estimate",
          stringDependentVariables="Response",
-         labelDependentVariables=c("final"),
-         labelPredictors=c("day","meanMoodpre","meanStepQ2","AsleepHr","Steps/1000"),
+         labelDependentVariables=c("reducedModel"),
+         labelPredictors=c("Baseline Mood","DifficultyEarlyFamilyEnviornment","day","daysquare","Daily Sleep Hour","Daily Steps(*1000)"),
          separateConfColumn=FALSE, showStdBeta=FALSE,pvaluesAsNumbers=FALSE,showAIC=TRUE,
          digits.p=3,digits.est=2,digits.ci=2)
-anova(model1,model2,model3,model4,model5,model6,modelfinal)
+
 # Table 1
 mean(MASpost$TotalhrAsleep);sd(MASpost$TotalhrAsleep)
 mean(MASpost$thousandStep);sd(MASpost$thousandStep)
 # Table 2
 rcorr(as.matrix(MASpost[,c("TotalhrAsleep","thousandStep","mood","Age","Sex")]))
 ######## Time lag association ########
-Baselines <- MASpost[c("userid","Age","Sex","meanSleeppre","meanSteppre","meanMoodpre","meanSleepq1","meanStepq1","meanSleepq2","meanStepq2"
-                       ,"SleepPre","Sleepq1","Sleepq2","StartDate")]
+Baselines <- MASpost[c("userid","BaselineMood","DifficultEarlyFamilyEnvironment","StartDate")]
 Baselines <- Baselines[!duplicated(Baselines),]
 Mood<-rbind(Mood2014,Mood2015)
 Sleep$Yesterday<-Sleep$SleepDay-1;Sleep$Tomorrow<-Sleep$SleepDay+1;Sleep$tdby<-Sleep$SleepDay-2;Sleep$tdat<-Sleep$SleepDay+2
 Activity$Yesterday<-Activity$ActivityDate-1;Activity$Tomorrow<-Activity$ActivityDate+1;Activity$tdby<-Activity$ActivityDate-2;Activity$tdat<-Activity$ActivityDate+2
-#timestamp<-"tdby"
-#timestamp<-"yesterday"
-#timestamp<-"Tomorrow"
-timestamp<-"tdat"
+#timestamp<-"tdby"  # mood@day x-2 ~ fitbit @ day x
+#timestamp<-"Yesterday" # mood@day x-1 ~ fitbit @ day x
+timestamp<-"Tomorrow" # mood@day x+1 ~ fitbit @ day x
+#timestamp<-"tdat" # mood@day x+2 ~ fitbit @ day x
 MSlag=merge(Mood,Sleep,by.x=c("userid","Date_mood"),by.y=c("Id",timestamp))
 MSlag=merge(MSlag,Baselines,by=c("userid","StartDate"))
 MSlag$day<-MSlag$Date_mood - MSlag$StartDate;
 MAlag=merge(Mood,Activity,by.x=c("userid","Date_mood"),by.y=c("Id",timestamp))
 MAlag=merge(MAlag,Baselines,by=c("userid","StartDate"))
 MAlag$day<-MAlag$Date_mood - MAlag$StartDate
-mergecols=c("userid","StartDate","Date_mood","mood","day","Age","Sex",
-            "meanSleeppre","meanSteppre","meanMoodpre","meanSleepq1","meanStepq1","meanSleepq2","meanStepq2","SleepPre","Sleepq1","Sleepq2")
+mergecols=c("userid","StartDate","Date_mood","mood","day","BaselineMood","DifficultEarlyFamilyEnvironment")
 MASlag=merge(MAlag,MSlag,by=mergecols,all=FALSE)
-MASlag[,c("day")]<-scale(MASlag[,c("day")]);MASlag$daysquare<-MASlag$day^2;
+MASlag[,c("day")]<-scale(MASlag[,c("day")]);
+MASlag$daysquare<-as.numeric(MASlag$day)^2;
 MASlag$thousandStep<-MASlag$TotalSteps / 1000
 MASlag$TotalhrAsleep<-MASlag$TotalHrAsleep
-model1 <- lmer(mood ~ 1 + (1|userid),data=MASlag,REML=FALSE);summary(model1)
-model2 <- lmer(mood ~ 1 + day + daysquare + (1+day|userid),data=MASlag,REML=FALSE);summary(model2)
-model3 <- lmer(mood ~ 1 + day + daysquare + Age + Sex + (1+day|userid),data=MASlag,REML=FALSE);summary(model3)
-model4 <- lmer(mood ~ 1 + day + daysquare + Age + Sex + meanMoodpre + (1+day|userid),data=MASlag,REML=FALSE);summary(model4)
-model5 <- lmer(mood ~ 1 + day + daysquare + Age + Sex + meanMoodpre + meanSleeppre + meanSleepq1 + meanSleepq2 + TotalhrAsleep 
-               + (1+day+TotalhrAsleep|userid),data=MASlag,REML=FALSE);summary(model5)
-model6 <- lmer(mood ~ 1 + day + daysquare + Age + Sex + meanMoodpre + meanSleeppre + meanSleepq1 + meanSleepq2 + TotalhrAsleep
-               + meanSteppre + meanStepq1 + meanStepq2 + thousandStep + (1+day+TotalhrAsleep+thousandStep|userid),data=MASlag,REML=FALSE);summary(model6)
-model6 <- lmer(mood ~ 1 + day + daysquare + Age + Sex + meanMoodpre + meanSleeppre + meanSleepq1 + meanSleepq2 + TotalhrAsleep
-               + meanSteppre + meanStepq1 + meanStepq2 + thousandStep + (1+day+TotalhrAsleep|userid),data=MASlag,REML=FALSE);summary(model6)
-          # for mood@dayX-1, random slope for step model doesn't converge
-#mood@dayX-2 vs fitbit@dayX
-modelfinal <- lmer(mood ~ 1 + day + daysquare + meanMoodpre + meanSleepq1 + meanStepq2 + (1+day|userid),data=MASlag,REML=FALSE);summary(modelfinal)
-#mood@dayX-1 vs fitbit@dayX
-modelfinal <- lmer(mood ~ 1 + day + daysquare + meanMoodpre + meanStepq2 + thousandStep + (1+day|userid),data=MASlag,REML=FALSE);summary(modelfinal)
-#mood@dayX+1 vs fitbit@dayX, mood@dayX+2 vs fitbit@dayX
-modelfinal <- lmer(mood ~ 1 + day + daysquare + meanMoodpre + meanStepq2 + (1+day|userid),data=MASlag,REML=FALSE);summary(modelfinal)
+modelfinal <- lmer(mood ~ 1 + BaselineMood + DifficultEarlyFamilyEnvironment + day + daysquare + TotalhrAsleep + thousandStep + (1+TotalhrAsleep+thousandStep|userid),data=MASlag);
+summary(modelfinal)
+coefs=summary(modelfinal)$coefficients;p.adjust(coefs[2:nrow(coefs),5],method="fdr")
 
-sjt.lmer(model1,model2,model3,model4,model5,model6,
+sjt.lmer(modelfinal,
          showHeaderStrings=TRUE,stringB="Estimate",
          stringDependentVariables="Response",
-         labelDependentVariables=c("model1","model2","model3","model4","model5","model6"),
-         labelPredictors=c("day","daysquare","Age","Sex","meanMoodpre","meanAsleeppre","meanAsleepQ1","meanAsleepQ2","AsleepHr","meanSteppre","meanStepQ1","meanStepQ2","Steps/1000"),
+         labelDependentVariables=c("mood@dayX+2 ~ fitbit@dayX"),
+         labelPredictors=c("Baseline Mood","DifficultEarlyFamilyEnvironment","day","daysquare","Daily Sleep Hour","Daily Steps(*1000)"),
          separateConfColumn=FALSE, showStdBeta=FALSE,pvaluesAsNumbers=FALSE,showAIC=TRUE,
          digits.p=3,digits.est=2,digits.ci=2)
          
-anova(model1,model2,model3,model4,model5,model6,modelfinal)
-
 #### Mood - sleep efficiency time lag correlation ####
 MoodSleepfull=merge(Mood,Sleep,by.x=c("userid","Date_mood"),by.y=c("Id","SleepDay"),all.x=TRUE,all.y=TRUE,sort=TRUE)
 MoodSleepfull$Ratio=MoodSleepfull$TotalMinutesAsleep/MoodSleepfull$TotalTimeInBed
@@ -1236,7 +1314,8 @@ Summary.MSA = merge(Summary.MSA,Summary.mood,by="id",all.x=TRUE)
 MSA.corr=rcorr(as.matrix(Summary.MSA[c("meanSteps","meancalories","meandistance","meanveryactmin","meanfairactmin","meanlightactmin","meansedmin","meanMinAsleep","meanMinInbed","meanAsleepInbedratio","meanMood")]))
 write.table(data.frame(MSA.corr$P),"work/Fitbit/FBscripts/tmp.csv",sep=",")
 ####################################### PHQ #######################################
-PHQ=read.csv("Z:././././Data Analysis/Yu Fang/data/data14all_15BLq1q2_PHQ_Sleep_02162016.csv")
+PHQ <- read.csv("Z:././././Data Analysis/Yu Fang/data/data14all_15BLq1q2_PHQ_Sleep_02162016.csv")
+Baseline2010 <- PHQ[c("UserID","depr0","EFE0","Neu0","PHQtot0")]  # significant factor in 2010 paper, female sex included somewhere else
 
 PHQ.BS1.2014=read.csv('z:/Data Analysis/Yu Fang/data/2014BioShort1.csv')
 PHQ.BS2.2014=read.csv('z:/Data Analysis/Yu Fang/data/2014BioShort2.csv')
